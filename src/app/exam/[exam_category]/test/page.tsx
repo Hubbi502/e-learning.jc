@@ -57,16 +57,33 @@ export default function ExamTestPage() {
 
   const toggleTheme = () => setIsDark(!isDark);
 
-  // Tab monitoring for exam integrity
   const { violationCount } = useTabMonitor(
     () => {
-      // When violation limit is reached, auto-submit the exam
       handleSubmitExam();
     },
-    5, // Maximum 5 violations allowed
-    (count) => {
+    3,
+    async (count) => {
       setViolations(count);
       setShowViolationWarning(true);
+      
+      // Update violations in database immediately
+      if (studentData) {
+        try {
+          await fetch('/api/student/update-violations', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              studentId: studentData.student.id,
+              violations: count
+            }),
+          });
+        } catch (error) {
+          console.error('Failed to update violations:', error);
+        }
+      }
+      
       // Hide warning after 3 seconds
       setTimeout(() => setShowViolationWarning(false), 3000);
     }
@@ -195,7 +212,7 @@ export default function ExamTestPage() {
           examCode: studentData.student.exam_code,
           answers: formattedAnswers,
           violations: violations, // Include violation count in submission
-          autoSubmitted: violations >= 5 // Flag if auto-submitted due to violations
+          autoSubmitted: violations >= 3 // Flag if auto-submitted due to violations
         }),
       });
 
@@ -289,16 +306,16 @@ export default function ExamTestPage() {
                 You have switched tabs or lost focus. This has been recorded.
               </p>
               <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-lg ${
-                violations >= 4 
+                violations >= 2 
                   ? 'bg-red-500/20 text-red-600' 
                   : 'bg-yellow-500/20 text-yellow-600'
               }`}>
                 <AlertCircle className="w-4 h-4" />
                 <span className="font-semibold">
-                  Violations: {violations}/5
+                  Violations: {violations}/3
                 </span>
               </div>
-              {violations >= 4 && (
+              {violations >= 2 && (
                 <p className="text-red-500 text-sm mt-2 font-medium">
                   ⚠️ One more violation will auto-submit your exam!
                 </p>
@@ -336,9 +353,9 @@ export default function ExamTestPage() {
             <div className="flex items-center space-x-3 lg:space-x-6">
               {/* Violation Counter */}
               <div className={`flex items-center space-x-2 px-3 py-2 rounded-xl ${
-                violations >= 4
+                violations >= 2
                   ? 'bg-red-500/20 text-red-600'
-                  : violations >= 2
+                  : violations >= 1
                     ? 'bg-yellow-500/20 text-yellow-600'
                     : isDark 
                       ? 'bg-slate-800/30 text-slate-400' 
@@ -346,7 +363,7 @@ export default function ExamTestPage() {
               }`}>
                 <Shield className="w-4 h-4" />
                 <span className="text-xs font-medium">
-                  {violations}/5
+                  {violations}/3
                 </span>
               </div>
 
@@ -412,9 +429,9 @@ export default function ExamTestPage() {
               <div className="flex items-center space-x-2">
                 {/* Violation Counter Mobile */}
                 <div className={`flex items-center space-x-1 px-2 py-1 rounded-lg ${
-                  violations >= 4
+                  violations >= 2
                     ? 'bg-red-500/20 text-red-600'
-                    : violations >= 2
+                    : violations >= 1
                       ? 'bg-yellow-500/20 text-yellow-600'
                       : isDark 
                         ? 'bg-slate-800/30 text-slate-400' 
@@ -422,7 +439,7 @@ export default function ExamTestPage() {
                 }`}>
                   <Shield className="w-3 h-3" />
                   <span className="text-xs font-medium">
-                    {violations}/5
+                    {violations}/3
                   </span>
                 </div>
 
@@ -741,9 +758,9 @@ function NavigationPanel({
         {/* Violation Status */}
         <div className="pt-2 mt-3 border-t border-gray-200 dark:border-gray-600">
           <div className={`flex items-center justify-between p-2 rounded-lg ${
-            violations >= 4
+            violations >= 2
               ? 'bg-red-500/20 text-red-600'
-              : violations >= 2
+              : violations >= 1
                 ? 'bg-yellow-500/20 text-yellow-600'
                 : isDark 
                   ? 'bg-slate-700/50 text-gray-300' 
@@ -753,7 +770,7 @@ function NavigationPanel({
               <Shield className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="font-medium">Violations</span>
             </div>
-            <span className="font-bold">{violations}/5</span>
+            <span className="font-bold">{violations}/3</span>
           </div>
           
           {/* Next Violation Check Countdown */}
@@ -769,9 +786,9 @@ function NavigationPanel({
             </div>
           </div>
           
-          {violations >= 4 && (
+          {violations >= 2 && (
             <p className="text-red-500 text-xs mt-1 text-center font-medium">
-              ⚠️ Exam will auto-submit at 5 violations
+              ⚠️ Exam will auto-submit at 3 violations
             </p>
           )}
         </div>

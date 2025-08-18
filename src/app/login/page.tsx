@@ -66,10 +66,23 @@ export default function JapaneseLMSLogin() {
     setIsLoading(true);
     setError('');
     
+    // Client-side validation
+    if (!formData.email.trim()) {
+      setError('Email harus diisi');
+      setIsLoading(false);
+      return;
+    }
+    
+    if (!formData.password.trim()) {
+      setError('Password harus diisi');
+      setIsLoading(false);
+      return;
+    }
+    
     try {
       // For now, we only support admin login since student login isn't implemented
       if (loginType === 'student') {
-        setError('Student login is not yet implemented. Please use admin login.');
+        setError('Login siswa belum tersedia. Silakan gunakan login admin.');
         setIsLoading(false);
         return;
       }
@@ -81,11 +94,11 @@ export default function JapaneseLMSLogin() {
         // Redirect will happen automatically via useEffect when user state updates
         router.push('/dashboard');
       } else {
-        setError(result.message || 'Login failed. Please check your credentials.');
+        setError(result.message || 'Login gagal. Silakan periksa email dan password Anda.');
       }
     } catch (error) {
       console.error('Login error:', error);
-      setError('An error occurred during login. Please try again.');
+      setError('Terjadi kesalahan saat login. Silakan coba lagi.');
     } finally {
       setIsLoading(false);
     }

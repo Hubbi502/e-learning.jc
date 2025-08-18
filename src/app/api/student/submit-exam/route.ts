@@ -9,11 +9,13 @@ interface SubmitExamData {
     questionId: string;
     selectedOption: 'A' | 'B' | 'C' | 'D';
   }>;
+  violations?: number;
+  autoSubmitted?: boolean;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { studentId, examCode, answers }: SubmitExamData = await request.json();
+    const { studentId, examCode, answers, violations = 0, autoSubmitted = false }: SubmitExamData = await request.json();
 
     // Validasi input
     if (!studentId || !examCode || !answers || !Array.isArray(answers)) {
@@ -149,11 +151,12 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      // Update student as submitted
+      // Update student as submitted with violations count
       const updatedStudent = await tx.student.update({
         where: { id: studentId },
         data: {
-          is_submitted: true
+          is_submitted: true,
+          violations: violations
         }
       });
 
@@ -162,12 +165,16 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Exam submitted successfully!",
+      message: autoSubmitted 
+        ? "Exam auto-submitted due to violations!" 
+        : "Exam submitted successfully!",
       result: {
         score: correctAnswers,
         totalQuestions: totalQuestions,
         percentage: percentage,
         passed: percentage >= 70, // Assuming 70% is passing grade
+        violations: violations,
+        autoSubmitted: autoSubmitted,
         student: result.updatedStudent
       }
     });

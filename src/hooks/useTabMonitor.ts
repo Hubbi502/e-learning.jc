@@ -3,12 +3,12 @@ import { useEffect, useRef, useCallback } from "react";
 /**
  * Custom hook to monitor tab switching and focus violations during exams
  * @param onLimitReached - Callback when violation limit is reached
- * @param limit - Maximum number of violations allowed (default: 5)
+ * @param limit - Maximum number of violations allowed (default: 3)
  * @param onViolation - Callback on each violation with current count
  */
 export function useTabMonitor(
   onLimitReached: () => void,
-  limit = 5,
+  limit = 3,
   onViolation?: (count: number) => void
 ) {
   const counterRef = useRef(0);

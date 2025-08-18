@@ -41,20 +41,39 @@ export interface UserResponse extends AuthResponse {
 // Validation schemas
 export const loginValidationSchema = z.object({
   email: z.string()
-    .min(1, "email is required")
-    .max(50, "email must be less than 50 characters")
+    .min(1, "Email harus diisi")
+    .max(50, "Email tidak boleh lebih dari 50 karakter")
     .trim(),
   password: z.string()
-    .min(1, "Password is required")
-    .max(100, "Password must be less than 100 characters"),
+    .min(1, "Password harus diisi")
+    .max(100, "Password tidak boleh lebih dari 100 karakter"),
 });
 
+
+// Helper function to format Zod errors into user-friendly messages
+const formatValidationErrors = (error: z.ZodError): string => {
+  const errors = error.issues.map(err => {
+    const field = err.path.join('.');
+    return err.message;
+  });
+  
+  // Join multiple errors with proper formatting
+  if (errors.length === 1) {
+    return errors[0];
+  } else if (errors.length === 2) {
+    return `${errors[0]} and ${errors[1]}`;
+  } else {
+    const lastError = errors.pop();
+    return `${errors.join(', ')}, and ${lastError}`;
+  }
+};
 
 // Type guards
 export const validateLoginRequest = (data: unknown): LoginRequestDto => {
   const result = loginValidationSchema.safeParse(data);
   if (!result.success) {
-    throw new Error(`Validation failed: ${result.error.message}`);
+    const friendlyMessage = formatValidationErrors(result.error);
+    throw new Error(friendlyMessage);
   }
   return result.data;
 };

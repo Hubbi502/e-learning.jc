@@ -17,7 +17,7 @@ interface Student {
     id: string;
     score: number;
     total_questions: number;
-    percentage: number;
+    percentage: number | string | any; // Can be Decimal from Prisma
     exam: {
       id: string;
       category: 'Gengo' | 'Bunka';
@@ -211,19 +211,33 @@ export function StudentManagement() {
       };
     }
 
-    const totalScore = student.scores.reduce((sum, score) => sum + score.score, 0);
+    // Handle percentage as Decimal (from Prisma) - convert to number
+    const percentageScores = student.scores.map(score => {
+      // Convert Decimal/string to number, fallback to calculating from score/total_questions
+      if (score.percentage !== null && score.percentage !== undefined) {
+        const percentageValue = typeof score.percentage === 'number' ? score.percentage : parseFloat(score.percentage.toString());
+        return !isNaN(percentageValue) ? percentageValue : (score.total_questions > 0 ? (score.score / score.total_questions) * 100 : 0);
+      }
+      // Fallback: calculate percentage from score and total_questions
+      return score.total_questions > 0 ? (score.score / score.total_questions) * 100 : 0;
+    });
+    
     const totalExams = student.scores.length;
-    const averageScore = totalScore / totalExams;
-    const bestScore = Math.max(...student.scores.map(score => 
-      typeof score.percentage === 'number' ? score.percentage : 0
-    ));
+    const averageScore = percentageScores.reduce((sum, percentage) => sum + percentage, 0) / totalExams;
+    const bestScore = Math.max(...percentageScores);
+    const totalScore = percentageScores.reduce((sum, percentage) => sum + percentage, 0);
 
     // Calculate rank among all students
     const allAverages = students.map(s => {
       if (s.scores.length === 0) return 0;
       return s.scores.reduce((sum, score) => {
-        const percentage = typeof score.percentage === 'number' ? score.percentage : 0;
-        return sum + percentage;
+        // Handle percentage as Decimal (from Prisma) - convert to number
+        if (score.percentage !== null && score.percentage !== undefined) {
+          const percentageValue = typeof score.percentage === 'number' ? score.percentage : parseFloat(score.percentage.toString());
+          return sum + (!isNaN(percentageValue) ? percentageValue : (score.total_questions > 0 ? (score.score / score.total_questions) * 100 : 0));
+        }
+        // Fallback: calculate percentage from score and total_questions
+        return sum + (score.total_questions > 0 ? (score.score / score.total_questions) * 100 : 0);
       }, 0) / s.scores.length;
     }).sort((a, b) => b - a);
     
@@ -428,7 +442,7 @@ export function StudentManagement() {
         {topStudents.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {topStudents.map((student, index) => (
-              <div key={student.id} className="p-4 border rounded-lg hover:shadow-md transition-shadow duration-200">
+              <div key={student.id} className="p-4 border rounded-lg hover:shadow-md transition-shadow duration-200 text-gray-600">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center">
                     <div className={`
@@ -1077,7 +1091,7 @@ export function StudentManagement() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-gray-600">
                   {/* Student Info */}
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-gray-900">Student Information</h3>
@@ -1182,7 +1196,16 @@ export function StudentManagement() {
                           {selectedStudent.scores
                             .sort((a, b) => new Date(b.exam.created_at).getTime() - new Date(a.exam.created_at).getTime())
                             .map((score, index) => {
-                              const percentage = typeof score.percentage === 'number' ? score.percentage : 0;
+                              // Handle percentage as Decimal (from Prisma) - convert to number
+                              let percentage: number;
+                              if (score.percentage !== null && score.percentage !== undefined) {
+                                const percentageValue = typeof score.percentage === 'number' ? score.percentage : parseFloat(score.percentage.toString());
+                                percentage = !isNaN(percentageValue) ? percentageValue : (score.total_questions > 0 ? (score.score / score.total_questions) * 100 : 0);
+                              } else {
+                                // Fallback: calculate percentage from score and total_questions
+                                percentage = score.total_questions > 0 ? (score.score / score.total_questions) * 100 : 0;
+                              }
+                              
                               const getGradeInfo = (perc: number) => {
                                 if (perc >= 90) return { grade: 'A+', color: 'bg-green-100 text-green-800 border-green-200' };
                                 if (perc >= 80) return { grade: 'A', color: 'bg-green-100 text-green-800 border-green-200' };
