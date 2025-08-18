@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Sun, Moon, Clock, BookOpen, CheckCircle, AlertCircle, ArrowRight, ArrowLeft, Flag, User, Trophy, Eye } from 'lucide-react';
+import { Sun, Moon, Clock, BookOpen, CheckCircle, AlertCircle, ArrowRight, ArrowLeft, Flag, User, Trophy, Eye, Shield } from 'lucide-react';
+import { useTabMonitor } from '@/hooks/useTabMonitor';
 
 interface Question {
   id: string;
@@ -50,8 +51,26 @@ export default function ExamTestPage() {
   const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [violations, setViolations] = useState(0);
+  const [showViolationWarning, setShowViolationWarning] = useState(false);
+  const [nextViolationCheck, setNextViolationCheck] = useState(10);
 
   const toggleTheme = () => setIsDark(!isDark);
+
+  // Tab monitoring for exam integrity
+  const { violationCount } = useTabMonitor(
+    () => {
+      // When violation limit is reached, auto-submit the exam
+      handleSubmitExam();
+    },
+    5, // Maximum 5 violations allowed
+    (count) => {
+      setViolations(count);
+      setShowViolationWarning(true);
+      // Hide warning after 3 seconds
+      setTimeout(() => setShowViolationWarning(false), 3000);
+    }
+  );
 
   // Load student data and questions on component mount
   useEffect(() => {
@@ -108,6 +127,22 @@ export default function ExamTestPage() {
     }
   }, [examStarted, timeLeft, showResults]);
 
+  // Violation check countdown timer
+  useEffect(() => {
+    if (examStarted && !showResults) {
+      const violationTimer = setInterval(() => {
+        setNextViolationCheck(prev => {
+          if (prev <= 1) {
+            return 10; // Reset to 10 seconds
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(violationTimer);
+    }
+  }, [examStarted, showResults]);
+
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -158,7 +193,9 @@ export default function ExamTestPage() {
         body: JSON.stringify({
           studentId: studentData.student.id,
           examCode: studentData.student.exam_code,
-          answers: formattedAnswers
+          answers: formattedAnswers,
+          violations: violations, // Include violation count in submission
+          autoSubmitted: violations >= 5 // Flag if auto-submitted due to violations
         }),
       });
 
@@ -231,6 +268,46 @@ export default function ExamTestPage() {
         : 'bg-gradient-to-br from-blue-50 via-white to-indigo-50'
     }`}>
       
+      {/* Violation Warning Modal */}
+      {showViolationWarning && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className={`max-w-md w-full mx-4 p-6 rounded-2xl shadow-2xl border ${
+            isDark 
+              ? 'bg-slate-800 border-red-500/20' 
+              : 'bg-white border-red-200'
+          }`}>
+            <div className="text-center">
+              <Shield className="w-16 h-16 text-red-500 mx-auto mb-4" />
+              <h3 className={`text-xl font-bold mb-2 ${
+                isDark ? 'text-white' : 'text-gray-900'
+              }`}>
+                Exam Violation Detected!
+              </h3>
+              <p className={`text-sm mb-4 ${
+                isDark ? 'text-gray-300' : 'text-gray-600'
+              }`}>
+                You have switched tabs or lost focus. This has been recorded.
+              </p>
+              <div className={`inline-flex items-center space-x-2 px-4 py-2 rounded-lg ${
+                violations >= 4 
+                  ? 'bg-red-500/20 text-red-600' 
+                  : 'bg-yellow-500/20 text-yellow-600'
+              }`}>
+                <AlertCircle className="w-4 h-4" />
+                <span className="font-semibold">
+                  Violations: {violations}/5
+                </span>
+              </div>
+              {violations >= 4 && (
+                <p className="text-red-500 text-sm mt-2 font-medium">
+                  ⚠️ One more violation will auto-submit your exam!
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className={`sticky top-0 z-50 backdrop-blur-lg border-b ${
         isDark 
@@ -257,6 +334,22 @@ export default function ExamTestPage() {
 
             {/* Timer and Progress */}
             <div className="flex items-center space-x-3 lg:space-x-6">
+              {/* Violation Counter */}
+              <div className={`flex items-center space-x-2 px-3 py-2 rounded-xl ${
+                violations >= 4
+                  ? 'bg-red-500/20 text-red-600'
+                  : violations >= 2
+                    ? 'bg-yellow-500/20 text-yellow-600'
+                    : isDark 
+                      ? 'bg-slate-800/30 text-slate-400' 
+                      : 'bg-gray-100 text-gray-500'
+              }`}>
+                <Shield className="w-4 h-4" />
+                <span className="text-xs font-medium">
+                  {violations}/5
+                </span>
+              </div>
+
               <div className={`flex items-center space-x-2 px-3 lg:px-4 py-2 rounded-xl ${
                 timeLeft < 300 
                   ? 'bg-red-500/20 text-red-600' 
@@ -316,17 +409,35 @@ export default function ExamTestPage() {
                 {studentData?.student.name} - {studentData?.student.class}
               </div>
               
-              <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg ${
-                timeLeft < 300 
-                  ? 'bg-red-500/20 text-red-600' 
-                  : isDark 
-                    ? 'bg-purple-800/30 text-purple-300' 
-                    : 'bg-blue-100 text-blue-600'
-              }`}>
-                <Clock className="w-4 h-4" />
-                <span className="font-mono font-semibold text-sm">
-                  {formatTime(timeLeft)}
-                </span>
+              <div className="flex items-center space-x-2">
+                {/* Violation Counter Mobile */}
+                <div className={`flex items-center space-x-1 px-2 py-1 rounded-lg ${
+                  violations >= 4
+                    ? 'bg-red-500/20 text-red-600'
+                    : violations >= 2
+                      ? 'bg-yellow-500/20 text-yellow-600'
+                      : isDark 
+                        ? 'bg-slate-800/30 text-slate-400' 
+                        : 'bg-gray-100 text-gray-500'
+                }`}>
+                  <Shield className="w-3 h-3" />
+                  <span className="text-xs font-medium">
+                    {violations}/5
+                  </span>
+                </div>
+
+                <div className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg ${
+                  timeLeft < 300 
+                    ? 'bg-red-500/20 text-red-600' 
+                    : isDark 
+                      ? 'bg-purple-800/30 text-purple-300' 
+                      : 'bg-blue-100 text-blue-600'
+                }`}>
+                  <Clock className="w-4 h-4" />
+                  <span className="font-mono font-semibold text-sm">
+                    {formatTime(timeLeft)}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -383,6 +494,8 @@ export default function ExamTestPage() {
               onQuestionSelect={setCurrentQuestion}
               flaggedQuestions={flaggedQuestions}
               isDark={isDark}
+              violations={violations}
+              nextViolationCheck={nextViolationCheck}
             />
           </div>
         </div>
@@ -549,7 +662,9 @@ function NavigationPanel({
   currentQuestion,
   onQuestionSelect,
   flaggedQuestions,
-  isDark
+  isDark,
+  violations = 0,
+  nextViolationCheck = 10
 }: {
   questions: Question[];
   answers: Record<string, string>;
@@ -557,6 +672,8 @@ function NavigationPanel({
   onQuestionSelect: (index: number) => void;
   flaggedQuestions: Set<number>;
   isDark: boolean;
+  violations?: number;
+  nextViolationCheck?: number;
 }) {
   return (
     <div className={`backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl border ${
@@ -619,6 +736,44 @@ function NavigationPanel({
         <div className="flex items-center space-x-2">
           <Flag className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-500" />
           <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>Flagged</span>
+        </div>
+        
+        {/* Violation Status */}
+        <div className="pt-2 mt-3 border-t border-gray-200 dark:border-gray-600">
+          <div className={`flex items-center justify-between p-2 rounded-lg ${
+            violations >= 4
+              ? 'bg-red-500/20 text-red-600'
+              : violations >= 2
+                ? 'bg-yellow-500/20 text-yellow-600'
+                : isDark 
+                  ? 'bg-slate-700/50 text-gray-300' 
+                  : 'bg-gray-100 text-gray-600'
+          }`}>
+            <div className="flex items-center space-x-2">
+              <Shield className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="font-medium">Violations</span>
+            </div>
+            <span className="font-bold">{violations}/5</span>
+          </div>
+          
+          {/* Next Violation Check Countdown */}
+          <div className={`mt-2 p-2 rounded-lg ${
+            isDark ? 'bg-slate-600/50 text-slate-300' : 'bg-blue-50 text-blue-600'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Clock className="w-3 h-3" />
+                <span className="text-xs font-medium">Next Check</span>
+              </div>
+              <span className="text-xs font-bold">{nextViolationCheck}s</span>
+            </div>
+          </div>
+          
+          {violations >= 4 && (
+            <p className="text-red-500 text-xs mt-1 text-center font-medium">
+              ⚠️ Exam will auto-submit at 5 violations
+            </p>
+          )}
         </div>
       </div>
     </div>
