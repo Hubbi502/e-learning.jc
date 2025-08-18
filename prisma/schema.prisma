@@ -1,0 +1,125 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+        
+enum Category {
+  Gengo
+  Bunka
+}
+
+enum Option {
+  A
+  B
+  C
+  D
+}
+
+model Question {
+  id             String   @id @default(uuid())
+  question_text  String
+  option_a       String
+  option_b       String
+  option_c       String
+  option_d       String
+  correct_option Option
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  answers            Answer[]
+  question_categories QuestionCategory[]
+
+  @@map("questions")
+}
+
+model QuestionCategory {
+  id          String   @id @default(uuid())
+  question_id String
+  category    Category
+  created_at  DateTime @default(now())
+
+  question Question @relation(fields: [question_id], references: [id], onDelete: Cascade)
+
+  @@unique([question_id, category])
+  @@map("question_categories")
+}
+
+model Exam {
+  id         String    @id @default(uuid())
+  exam_code  String    @unique
+  category   Category
+  duration   Int       @default(60)
+  start_time DateTime?
+  end_time   DateTime?
+  is_active  Boolean   @default(false)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+
+  scores Score[]
+
+  @@map("exams")
+}
+
+model Student {
+  id           String    @id @default(uuid())
+  name         String
+  class        String
+  exam_code    String
+  category     Category
+  started_at   DateTime? @default(now())
+  violations   Int       @default(0)
+  is_submitted Boolean   @default(false)
+  created_at   DateTime  @default(now())
+
+  answers Answer[]
+  scores  Score[]
+
+  @@map("students")
+}
+
+model Answer {
+  id          String   @id @default(uuid())
+  student_id  String
+  question_id String
+  answer      Option?
+  is_correct  Boolean?
+  created_at  DateTime @default(now())
+
+  student  Student  @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [question_id], references: [id], onDelete: Cascade)
+
+  @@unique([student_id, question_id])
+  @@map("answers")
+}
+
+model Score {
+  id              String  @id @default(uuid())
+  student_id      String
+  exam_id         String
+  score           Int     @default(0)
+  total_questions Int     @default(0)
+  percentage      Decimal @default(0.00) @db.Decimal(5, 2)
+  is_published    Boolean @default(false)
+  created_at      DateTime @default(now())
+
+  student Student @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  exam    Exam    @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+
+  @@unique([student_id, exam_id])
+  @@map("scores")
+}
+
+model AdminUser {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password_hash String
+  created_at    DateTime @default(now())
+
+  @@map("admin_users")
+}
