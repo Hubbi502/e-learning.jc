@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, Filter, BookOpen, Grid, List, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Filter, BookOpen, Grid, List, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Question {
   id: string;
@@ -41,6 +41,10 @@ export function QuestionManagement() {
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
   const [sortField, setSortField] = useState<'question_text' | 'categories' | 'created_at' | 'correct_option'>('created_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const [formData, setFormData] = useState<QuestionFormData>({
     categories: ['Gengo'],
     question_text: '',
@@ -53,15 +57,30 @@ export function QuestionManagement() {
 
   useEffect(() => {
     fetchQuestions();
-  }, []);
+  }, [currentPage, itemsPerPage, searchTerm, categoryFilter]);
 
   const fetchQuestions = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/questions');
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString(),
+      });
+      
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
+      
+      if (categoryFilter !== 'all') {
+        params.append('category', categoryFilter);
+      }
+      
+      const response = await fetch(`/api/admin/questions?${params}`);
       if (response.ok) {
         const data = await response.json();
         setQuestions(data.questions || []);
+        setTotalItems(data.pagination?.total || 0);
+        setTotalPages(data.pagination?.pages || 0);
       }
     } catch (error) {
       console.error('Error fetching questions:', error);
@@ -97,6 +116,10 @@ export function QuestionManagement() {
       if (response.ok) {
         await fetchQuestions();
         resetForm();
+        // Reset to first page when adding/editing questions
+        if (currentPage !== 1) {
+          setCurrentPage(1);
+        }
       } else {
         const error = await response.json();
         alert(error.message || 'Failed to save question');
@@ -154,18 +177,31 @@ export function QuestionManagement() {
     setShowForm(false);
   };
 
-  const filteredQuestions = questions.filter(question => {
-    const matchesSearch = question.question_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         question.option_a.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         question.option_b.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         question.option_c.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         question.option_d.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesCategory = categoryFilter === 'all' || 
-                          (question.categories && question.categories.includes(categoryFilter as 'Gengo' | 'Bunka'));
-    
-    return matchesSearch && matchesCategory;
-  });
+  // Handle search with debounce effect
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1); // Reset to first page when searching
+  };
+
+  // Handle category filter change
+  const handleCategoryFilterChange = (category: 'all' | 'Gengo' | 'Bunka') => {
+    setCategoryFilter(category);
+    setCurrentPage(1); // Reset to first page when filtering
+  };
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  // Handle items per page change
+  const handleItemsPerPageChange = (items: number) => {
+    setItemsPerPage(items);
+    setCurrentPage(1); // Reset to first page when changing items per page
+  };
+
+  // Since we're now getting filtered data from the API, we don't need client-side filtering
+  const filteredQuestions = questions;
 
   const handleSort = (field: typeof sortField) => {
     if (sortField === field) {
@@ -176,6 +212,7 @@ export function QuestionManagement() {
     }
   };
 
+  // Client-side sorting since API doesn't handle sorting yet
   const sortedQuestions = [...filteredQuestions].sort((a, b) => {
     let comparison = 0;
     
@@ -196,6 +233,88 @@ export function QuestionManagement() {
     
     return sortDirection === 'asc' ? comparison : -comparison;
   });
+
+  // Pagination component
+  const PaginationComponent = () => {
+    const startItem = (currentPage - 1) * itemsPerPage + 1;
+    const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+    
+    return (
+      <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+        <div className="flex-1 flex justify-between items-center">
+          <div className="flex items-center space-x-4">
+            <p className="text-sm text-gray-700">
+              Showing <span className="font-medium">{startItem}</span> to{' '}
+              <span className="font-medium">{endItem}</span> of{' '}
+              <span className="font-medium">{totalItems}</span> results
+            </p>
+            <div className="flex items-center space-x-2">
+              <label className="text-sm text-gray-700">Items per page:</label>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                className="border border-gray-300 rounded-md px-2 py-1 text-sm text-gray-600"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage <= 1}
+              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous
+            </button>
+            
+            <div className="flex items-center space-x-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => handlePageChange(pageNum)}
+                    className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md ${
+                      currentPage === pageNum
+                        ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                        : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+            
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage >= totalPages}
+              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -234,7 +353,7 @@ export function QuestionManagement() {
                   type="text"
                   placeholder="Search questions..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   className="w-full pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white placeholder-gray-500 text-sm sm:text-base"
                 />
               </div>
@@ -243,7 +362,7 @@ export function QuestionManagement() {
               <Filter className="h-4 w-4 text-gray-400 flex-shrink-0" />
               <select
                 value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value as 'all' | 'Gengo' | 'Bunka')}
+                onChange={(e) => handleCategoryFilterChange(e.target.value as 'all' | 'Gengo' | 'Bunka')}
                 className="px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white text-sm sm:text-base"
               >
                 <option value="all">All Categories</option>
@@ -487,16 +606,10 @@ export function QuestionManagement() {
               <div className="bg-gray-50 px-4 sm:px-6 py-3 border-b border-gray-200">
                 <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
                   <span className="font-medium">
-                    Total: {sortedQuestions.length} question{sortedQuestions.length !== 1 ? 's' : ''}
+                    Showing {sortedQuestions.length} of {totalItems} question{totalItems !== 1 ? 's' : ''}
                   </span>
                   <span>
-                    Gengo: {sortedQuestions.filter(q => q.categories.includes('Gengo')).length}
-                  </span>
-                  <span>
-                    Bunka: {sortedQuestions.filter(q => q.categories.includes('Bunka')).length}
-                  </span>
-                  <span>
-                    Both: {sortedQuestions.filter(q => q.categories.includes('Gengo') && q.categories.includes('Bunka')).length}
+                    Page {currentPage} of {totalPages}
                   </span>
                 </div>
               </div>
@@ -635,6 +748,9 @@ export function QuestionManagement() {
                   </tbody>
                 </table>
               </div>
+              
+              {/* Pagination */}
+              <PaginationComponent />
             </>
           )}
         </div>
@@ -775,6 +891,13 @@ export function QuestionManagement() {
               ))
             )}
           </div>
+          
+          {/* Pagination for Card View */}
+          {sortedQuestions.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <PaginationComponent />
+            </div>
+          )}
         </>
       )}
     </div>

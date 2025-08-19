@@ -121,31 +121,19 @@ export function ExamManagement() {
   };
 
   const handleToggleActive = async (exam: Exam) => {
-    const action = exam.is_active ? 'deactivate' : 'activate';
-    const confirmMessage = exam.is_active 
-      ? 'Are you sure you want to deactivate this exam? Students will not be able to take the exam while it\'s deactivated.'
-      : 'Are you sure you want to activate this exam? Students will be able to take the exam if it\'s within the scheduled time.';
-    
-    if (!confirm(confirmMessage)) return;
-
     try {
       const response = await fetch(`/api/admin/exams/${exam.id}/toggle-active`, {
         method: 'PATCH',
       });
 
       if (response.ok) {
-        const result = await response.json();
         await fetchExams();
-        
-        // Show success message
-        alert(result.message || `Exam ${action}d successfully`);
       } else {
-        const error = await response.json();
-        alert(error.message || `Failed to ${action} exam`);
+        alert('Failed to toggle exam status');
       }
     } catch (error) {
       console.error('Error toggling exam status:', error);
-      alert(`Failed to ${action} exam`);
+      alert('Failed to toggle exam status');
     }
   };
 
@@ -167,22 +155,16 @@ export function ExamManagement() {
     const startTime = new Date(exam.start_time);
     const endTime = new Date(exam.end_time);
     
-    if (now < startTime) {
-      return exam.is_active ? 'Scheduled' : 'Scheduled (Inactive)';
-    }
-    if (now >= startTime && now <= endTime) {
-      return exam.is_active ? 'Active' : 'Paused';
-    }
+    if (now < startTime) return 'Scheduled';
+    if (now >= startTime && now <= endTime && exam.is_active) return 'Active';
     if (now > endTime) return 'Completed';
-    return 'Draft';
+    return 'Inactive';
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Active': return 'bg-green-100 text-green-800';
       case 'Scheduled': return 'bg-blue-100 text-blue-800';
-      case 'Scheduled (Inactive)': return 'bg-yellow-100 text-yellow-800';
-      case 'Paused': return 'bg-orange-100 text-orange-800';
       case 'Completed': return 'bg-gray-100 text-gray-800';
       case 'Inactive': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -430,10 +412,7 @@ export function ExamManagement() {
                     Active: {sortedExams.filter(exam => getExamStatus(exam) === 'Active').length}
                   </span>
                   <span>
-                    Scheduled: {sortedExams.filter(exam => ['Scheduled', 'Scheduled (Inactive)'].includes(getExamStatus(exam))).length}
-                  </span>
-                  <span>
-                    Paused: {sortedExams.filter(exam => getExamStatus(exam) === 'Paused').length}
+                    Scheduled: {sortedExams.filter(exam => getExamStatus(exam) === 'Scheduled').length}
                   </span>
                   <span>
                     Completed: {sortedExams.filter(exam => getExamStatus(exam) === 'Completed').length}
@@ -571,7 +550,7 @@ export function ExamManagement() {
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
-                            {(status === 'Scheduled' || status === 'Scheduled (Inactive)' || status === 'Active' || status === 'Paused') && (
+                            {(status === 'Scheduled' || status === 'Active') && (
                               <button
                                 onClick={() => handleToggleActive(exam)}
                                 className={`p-1 rounded transition-colors ${
@@ -735,7 +714,7 @@ export function ExamManagement() {
                     </button>
                   </div>
                   
-                  {(status === 'Scheduled' || status === 'Scheduled (Inactive)' || status === 'Active' || status === 'Paused') && (
+                  {(status === 'Scheduled' || status === 'Active') && (
                     <button
                       onClick={() => handleToggleActive(exam)}
                       className={`flex items-center justify-center px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200 min-w-0 ${
