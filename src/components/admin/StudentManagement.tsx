@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Users, Search, Filter, Trash2, Trophy, Award, TrendingUp, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Eye, MoreVertical, Grid, List } from 'lucide-react';
+import { japaneseTheme, japaneseText, getCardClasses, getButtonClasses } from './theme';
 
 interface Student {
   id: string;

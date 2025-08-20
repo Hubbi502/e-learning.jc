@@ -3,50 +3,195 @@
 /* This is the foundational CSS file your tailwind.config.ts depends on. */
 
 :root {
-  /* Base Colors */
+  /* Japanese-inspired Base Colors */
   --background: 0 0% 100%;
-  --foreground: 222.2 84% 4.9%;
+  --foreground: 215 25% 15%;
   --card: 0 0% 100%;
-  --card-foreground: 222.2 84% 4.9%;
+  --card-foreground: 215 25% 15%;
   --popover: 0 0% 100%;
-  --popover-foreground: 222.2 84% 4.9%;
-  --primary: 222.2 47.4% 11.2%;
+  --popover-foreground: 215 25% 15%;
+  
+  /* Primary colors inspired by Japanese indigo (ai-iro) */
+  --primary: 220 50% 20%;
   --primary-foreground: 210 40% 98%;
-  --primary-glow: 210 100% 50%;
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 222.2 47.4% 11.2%;
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-  --accent: 210 40% 96.1%;
-  --accent-foreground: 222.2 47.4% 11.2%;
-  --destructive: 0 84.2% 60.2%;
+  --primary-glow: 220 100% 60%;
+  
+  /* Secondary colors inspired by Japanese silver (gin-iro) */
+  --secondary: 210 15% 95%;
+  --secondary-foreground: 215 25% 15%;
+  
+  /* Muted colors inspired by Japanese ash (hai-iro) */
+  --muted: 210 15% 96%;
+  --muted-foreground: 215 10% 45%;
+  
+  /* Accent colors inspired by Japanese gold (kin-iro) */
+  --accent: 45 100% 85%;
+  --accent-foreground: 215 25% 15%;
+  
+  /* Status colors */
+  --destructive: 0 84% 60%;
   --destructive-foreground: 210 40% 98%;
-  --success: 142.1 76.2% 36.3%;
+  --success: 142 76% 36%;
   --success-foreground: 210 40% 98%;
-  --warning: 47.9 95.8% 53.1%;
-  --warning-foreground: 210 40% 98%;
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-  --ring: 222.2 84% 4.9%;
+  --warning: 43 96% 56%;
+  --warning-foreground: 215 25% 15%;
+  
+  /* Border and input colors */
+  --border: 215 15% 90%;
+  --input: 215 15% 90%;
+  --ring: 220 50% 20%;
 
-  /* Sidebar */
-  --sidebar-background: 222.2 47.4% 11.2%;
+  /* Sidebar colors with Japanese navy theme */
+  --sidebar-background: 215 30% 10%;
   --sidebar-foreground: 210 40% 98%;
   --sidebar-primary: 210 40% 98%;
-  --sidebar-primary-foreground: 222.2 47.4% 11.2%;
-  --sidebar-accent: 210 40% 96.1%;
-  --sidebar-accent-foreground: 222.2 47.4% 11.2%;
-  --sidebar-border: 214.3 31.8% 91.4%;
-  --sidebar-ring: 222.2 84% 4.9%;
+  --sidebar-primary-foreground: 215 30% 10%;
+  --sidebar-accent: 220 20% 85%;
+  --sidebar-accent-foreground: 215 30% 10%;
+  --sidebar-border: 215 25% 80%;
+  --sidebar-ring: 220 50% 20%;
 
-  /* Radius */
-  --radius: 0.5rem;
+  /* Japanese-inspired radius */
+  --radius: 0.75rem;
 
-  /* Gradients & Shadows */
-  --gradient-primary: linear-gradient(to right, hsl(var(--primary)), hsl(var(--primary-glow)));
-  --shadow-elegant: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --shadow-glow: 0 0 20px 0px hsla(var(--primary-glow), 0.5);
+  /* Gradients & Shadows inspired by Japanese art */
+  --gradient-primary: linear-gradient(135deg, hsl(220, 50%, 20%), hsl(230, 60%, 30%));
+  --gradient-secondary: linear-gradient(135deg, hsl(45, 100%, 85%), hsl(40, 95%, 75%));
+  --gradient-accent: linear-gradient(135deg, hsl(220, 100%, 60%), hsl(250, 100%, 70%));
+  
+  /* Elegant shadows inspired by traditional Japanese art */
+  --shadow-elegant: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-soft: 0 10px 20px rgba(0, 0, 0, 0.06);
+  --shadow-glow: 0 0 30px 0px hsla(var(--primary-glow), 0.3);
+  --shadow-paper: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Japanese design utility classes */
+.japanese-paper {
+  background: linear-gradient(135deg, #fefefe 0%, #f8f9fa 100%);
+  box-shadow: var(--shadow-paper);
+}
+
+.japanese-ink {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+}
+
+.japanese-gold {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+}
+
+.japanese-cherry {
+  background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
+}
+
+/* Smooth transitions for Japanese aesthetic */
+* {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Custom scrollbar with Japanese style */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: var(--radius);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(220, 60%, 30%));
+  border-radius: var(--radius);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, hsl(220, 60%, 30%), hsl(var(--primary)));
+}
+
+/* Japanese-inspired animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.2) 20%,
+    rgba(255, 255, 255, 0.5) 60%,
+    rgba(255, 255, 255, 0)
+  );
+  background-size: 200px 100%;
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 4s ease-in-out infinite;
+}
+
+/* Focus styles with Japanese aesthetic */
+.focus-japanese:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3), 0 10px 15px -3px rgba(165, 180, 252, 0.5);
+  border-color: #8b5cf6;
+}
+
+/* Hover effects */
+.hover-lift:hover {
+  transform: scale(1.02);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.hover-glow:hover {
+  box-shadow: 0 10px 15px -3px rgba(165, 180, 252, 0.5);
+  transition: all 0.3s ease;
+}
+
+/* Text effects */
+.text-gradient-japanese {
+  background: linear-gradient(135deg, #1e293b, #3730a3, #1e293b);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+/* Loading skeleton with Japanese style */
+.skeleton {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Backdrop blur utilities */
+.backdrop-blur-japanese {
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+}
+
+/* Custom border gradients */
+.border-gradient-japanese {
+  border: 1px solid transparent;
+  background: linear-gradient(white, white) padding-box,
+              linear-gradient(135deg, #e2e8f0, #cbd5e1) border-box;
 }
 
 .dark {

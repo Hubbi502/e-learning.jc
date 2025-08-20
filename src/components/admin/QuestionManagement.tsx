@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Search, Filter, BookOpen, Grid, List, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { japaneseTheme, japaneseText, getCardClasses, getButtonClasses } from './theme';
 
 interface Question {
   id: string;
@@ -10,7 +11,6 @@ interface Question {
       id: string;
       name: string;
       exam_code: string;
-      category: 'Gengo' | 'Bunka';
     };
   }>;
   question_text: string;
@@ -35,10 +35,9 @@ interface QuestionFormData {
 
 export function QuestionManagement() {
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [exams, setExams] = useState<Array<{id: string; name: string; exam_code: string; category: 'Gengo' | 'Bunka'}>>([]);
+  const [exams, setExams] = useState<Array<{id: string; name: string; exam_code: string;}>>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<'all' | 'Gengo' | 'Bunka'>('all');
   const [examFilter, setExamFilter] = useState<'all' | string>('all');
   const [showForm, setShowForm] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
@@ -64,7 +63,7 @@ export function QuestionManagement() {
   useEffect(() => {
     fetchQuestions();
     fetchExams();
-  }, [currentPage, itemsPerPage, searchTerm, categoryFilter, examFilter]);
+  }, [currentPage, itemsPerPage, searchTerm, examFilter]);
 
   const fetchQuestions = async () => {
     try {
@@ -78,9 +77,6 @@ export function QuestionManagement() {
         params.append('search', searchTerm);
       }
       
-      if (categoryFilter !== 'all') {
-        params.append('category', categoryFilter);
-      }
 
       if (examFilter !== 'all') {
         params.append('exam_id', examFilter);
@@ -201,11 +197,7 @@ export function QuestionManagement() {
     setCurrentPage(1); // Reset to first page when searching
   };
 
-  // Handle category filter change
-  const handleCategoryFilterChange = (category: 'all' | 'Gengo' | 'Bunka') => {
-    setCategoryFilter(category);
-    setCurrentPage(1); // Reset to first page when filtering
-  };
+
 
   // Handle exam filter change
   const handleExamFilterChange = (examId: 'all' | string) => {
@@ -225,7 +217,7 @@ export function QuestionManagement() {
   };
 
   // Sorting logic
-  const handleSort = (field: 'question_text' | 'category' | 'created_at' | 'correct_option') => {
+  const handleSort = (field: 'question_text' | 'created_at' | 'correct_option') => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -243,10 +235,6 @@ export function QuestionManagement() {
       case 'question_text':
         aValue = a.question_text.toLowerCase();
         bValue = b.question_text.toLowerCase();
-        break;
-      case 'category':
-        aValue = a.exam_questions?.[0]?.exam?.category || '';
-        bValue = b.exam_questions?.[0]?.exam?.category || '';
         break;
       case 'created_at':
         aValue = new Date(a.created_at);
@@ -283,54 +271,47 @@ export function QuestionManagement() {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
+    <div className={getCardClasses('default')} style={{ padding: '1.5rem' }}>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Question Management</h2>
-          <p className="text-gray-600 text-sm sm:text-base">Manage exam questions</p>
+        <div className="flex items-center space-x-4">
+          <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl p-3 shadow-lg">
+            <BookOpen className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">質問管理</h2>
+            <p className="text-slate-600 text-sm sm:text-base font-medium">Question Management</p>
+          </div>
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm sm:text-base"
+          className={`${getButtonClasses('primary')} px-6 py-3 rounded-xl flex items-center space-x-2 shadow-lg`}
         >
-          <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-          Add Question
+          <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
+          <span className="font-medium">{japaneseText.add.jp} • {japaneseText.add.en}</span>
         </button>
       </div>
 
-      {/* Filters */}
+      {/* Filters with Japanese design */}
       <div className="mb-6 flex flex-col sm:flex-row gap-4">
         <div className="flex-1">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search questions..."
+              placeholder="質問を検索... Search questions..."
               value={searchTerm}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white placeholder-gray-500 text-sm sm:text-base"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white placeholder-gray-500 text-sm transition-colors"
             />
           </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <Filter className="h-4 w-4 text-gray-400 flex-shrink-0" />
-          <select
-            value={categoryFilter}
-            onChange={(e) => handleCategoryFilterChange(e.target.value as 'all' | 'Gengo' | 'Bunka')}
-            className="px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white text-sm sm:text-base"
-          >
-            <option value="all">All Categories</option>
-            <option value="Gengo">Gengo (Language)</option>
-            <option value="Bunka">Bunka (Culture)</option>
-          </select>
-        </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center">
           <select
             value={examFilter}
             onChange={(e) => handleExamFilterChange(e.target.value)}
-            className="px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white text-sm sm:text-base"
+            className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white text-sm min-w-[180px]"
           >
-            <option value="all">All Exams</option>
+            <option value="all">すべての試験 • All Exams</option>
             {exams.map((exam) => (
               <option key={exam.id} value={exam.id}>
                 {exam.name} ({exam.exam_code})
@@ -341,28 +322,28 @@ export function QuestionManagement() {
       </div>
 
       {/* View Toggle */}
-      <div className="flex items-center bg-gray-100 rounded-lg p-1 mb-6">
+      <div className="flex items-center bg-white border border-gray-200 rounded-xl p-1 mb-6 shadow-sm">
         <button
           onClick={() => setViewMode('cards')}
-          className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+          className={`flex items-center px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
             viewMode === 'cards'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
+              ? 'bg-gradient-to-r from-indigo-500 to-blue-600 text-white shadow-md transform scale-105'
+              : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
           }`}
         >
-          <Grid className="h-4 w-4 mr-1" />
-          Cards
+          <Grid className="h-4 w-4 mr-2" />
+          カード • Cards
         </button>
         <button
           onClick={() => setViewMode('table')}
-          className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+          className={`flex items-center px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
             viewMode === 'table'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
+              ? 'bg-gradient-to-r from-indigo-500 to-blue-600 text-white shadow-md transform scale-105'
+              : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
           }`}
         >
-          <List className="h-4 w-4 mr-1" />
-          Table
+          <List className="h-4 w-4 mr-2" />
+          テーブル • Table
         </button>
       </div>
 
@@ -375,9 +356,9 @@ export function QuestionManagement() {
         <div className="text-center py-12">
           <BookOpen className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-500 text-sm sm:text-base">
-            {searchTerm || categoryFilter !== 'all' || examFilter !== 'all' ? 'No questions found matching your criteria' : 'No questions found'}
+            {searchTerm  || examFilter !== 'all' ? 'No questions found matching your criteria' : 'No questions found'}
           </p>
-          {!searchTerm && categoryFilter === 'all' && examFilter === 'all' && (
+          {!searchTerm  && examFilter === 'all' && (
             <button
               onClick={() => setShowForm(true)}
               className="mt-4 text-indigo-600 hover:text-indigo-700 text-sm sm:text-base font-medium"
@@ -387,210 +368,292 @@ export function QuestionManagement() {
           )}
         </div>
       ) : viewMode === 'table' ? (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th 
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                  onClick={() => handleSort('question_text')}
-                >
-                  <div className="flex items-center">
-                    Question
-                    {sortField === 'question_text' && (
-                      sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
-                    )}
-                  </div>
-                </th>
-                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Exam
-                </th>
-                <th 
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                  onClick={() => handleSort('category')}
-                >
-                  <div className="flex items-center">
-                    Category
-                    {sortField === 'category' && (
-                      sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
-                    )}
-                  </div>
-                </th>
-                <th 
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors hidden sm:table-cell"
-                  onClick={() => handleSort('correct_option')}
-                >
-                  <div className="flex items-center">
-                    Answer
-                    {sortField === 'correct_option' && (
-                      sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
-                    )}
-                  </div>
-                </th>
-                <th 
-                  className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors hidden sm:table-cell"
-                  onClick={() => handleSort('created_at')}
-                >
-                  <div className="flex items-center">
-                    Created
-                    {sortField === 'created_at' && (
-                      sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
-                    )}
-                  </div>
-                </th>
-                <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {sortedQuestions.map((question) => (
-                <tr key={question.id} className="hover:bg-gray-50">
-                  <td className="px-4 sm:px-6 py-4">
-                    <div className="max-w-xs sm:max-w-sm">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {question.question_text}
-                      </p>
-                      <div className="mt-1 text-xs text-gray-500 grid grid-cols-2 gap-1">
-                        <div>A: <span className="font-medium">{question.option_a}</span></div>
-                        <div>B: <span className="font-medium">{question.option_b}</span></div>
-                        <div>C: <span className="font-medium">{question.option_c}</span></div>
-                        <div>D: <span className="font-medium">{question.option_d}</span></div>
-                      </div>
-                      {/* Mobile: Show additional info */}
-                      <div className="mt-2 sm:hidden space-y-1">
-                        {question.exam_questions && question.exam_questions.length > 0 && (
-                          <div className="text-xs text-indigo-600 space-y-1">
-                            {question.exam_questions.map((eq) => (
-                              <div key={eq.exam.id}>
-                                📋 {eq.exam.name} ({eq.exam.exam_code})
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th 
+                    className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                    onClick={() => handleSort('question_text')}
+                  >
+                    <div className="flex items-center">
+                      <span className="mr-1">質問 • Question</span>
+                      {sortField === 'question_text' && (
+                        sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 text-indigo-600" /> : <ChevronDown className="h-4 w-4 text-indigo-600" />
+                      )}
+                    </div>
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
+                    試験 • Exam
+                  </th>
+                  <th 
+                    className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors hidden md:table-cell"
+                    onClick={() => handleSort('correct_option')}
+                  >
+                    <div className="flex items-center">
+                      <span className="mr-1">正解 • Answer</span>
+                      {sortField === 'correct_option' && (
+                        sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 text-indigo-600" /> : <ChevronDown className="h-4 w-4 text-indigo-600" />
+                      )}
+                    </div>
+                  </th>
+                  <th 
+                    className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors hidden lg:table-cell"
+                    onClick={() => handleSort('created_at')}
+                  >
+                    <div className="flex items-center">
+                      <span className="mr-1">作成日 • Created</span>
+                      {sortField === 'created_at' && (
+                        sortDirection === 'asc' ? <ChevronUp className="h-4 w-4 text-indigo-600" /> : <ChevronDown className="h-4 w-4 text-indigo-600" />
+                      )}
+                    </div>
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    操作 • Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {sortedQuestions.map((question, index) => (
+                  <tr key={question.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-3 sm:px-6 py-4">
+                      <div className="flex items-start space-x-3">
+                        <div className="flex-shrink-0">
+                          <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                            {index + 1 + (currentPage - 1) * itemsPerPage}
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 mb-2 line-clamp-2">
+                            {question.question_text}
+                          </p>
+                          <div className="grid grid-cols-2 gap-1 text-xs">
+                            {[
+                              { letter: 'A', text: question.option_a, isCorrect: question.correct_option === 'A' },
+                              { letter: 'B', text: question.option_b, isCorrect: question.correct_option === 'B' },
+                              { letter: 'C', text: question.option_c, isCorrect: question.correct_option === 'C' },
+                              { letter: 'D', text: question.option_d, isCorrect: question.correct_option === 'D' }
+                            ].map((option) => (
+                              <div key={option.letter} className="flex items-center space-x-1">
+                                <span className={`w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold ${
+                                  option.isCorrect
+                                    ? 'bg-green-500 text-white'
+                                    : 'bg-gray-200 text-gray-600'
+                                }`}>
+                                  {option.letter}
+                                </span>
+                                <span className={`truncate ${
+                                  option.isCorrect ? 'text-green-700 font-medium' : 'text-gray-600'
+                                }`}>
+                                  {option.text}
+                                </span>
                               </div>
                             ))}
                           </div>
-                        )}
-                        <div className="flex items-center justify-between">
-                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                            question.exam_questions?.[0]?.exam?.category === 'Gengo' 
-                              ? 'bg-blue-100 text-blue-800' 
-                              : 'bg-green-100 text-green-800'
-                          }`}>
-                            {question.exam_questions?.[0]?.exam?.category || 'No Category'}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            Answer: Option {question.correct_option}
-                          </span>
+                          {/* Mobile info */}
+                          <div className="mt-2 sm:hidden">
+                            {question.exam_questions && question.exam_questions.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mb-1">
+                                {question.exam_questions.slice(0, 2).map((eq) => (
+                                  <span key={eq.exam.id} className="inline-block bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded text-xs">
+                                    {eq.exam.name}
+                                  </span>
+                                ))}
+                                {question.exam_questions.length > 2 && (
+                                  <span className="text-xs text-gray-500">+{question.exam_questions.length - 2} more</span>
+                                )}
+                              </div>
+                            )}
+                            <div className="text-xs text-gray-500">
+                              Created: {new Date(question.created_at).toLocaleDateString()}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {question.exam_questions && question.exam_questions.length > 0 ? (
-                      <div className="space-y-1">
-                        {question.exam_questions.map((eq) => (
-                          <div key={eq.exam.id}>
-                            <div className="font-medium text-indigo-600">{eq.exam.name}</div>
-                            <div className="text-xs text-gray-500">{eq.exam.exam_code}</div>
-                          </div>
-                        ))}
+                    </td>
+                    <td className="px-3 sm:px-6 py-4 hidden sm:table-cell">
+                      {question.exam_questions && question.exam_questions.length > 0 ? (
+                        <div className="space-y-1">
+                          {question.exam_questions.slice(0, 2).map((eq) => (
+                            <div key={eq.exam.id} className="bg-indigo-50 rounded-md p-2">
+                              <div className="text-sm font-medium text-indigo-900">{eq.exam.name}</div>
+                              <div className="text-xs text-indigo-600">{eq.exam.exam_code}</div>
+                            </div>
+                          ))}
+                          {question.exam_questions.length > 2 && (
+                            <div className="text-xs text-gray-500">+{question.exam_questions.length - 2} more exams</div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 italic text-sm">No exams</span>
+                      )}
+                    </td>
+                    <td className="px-3 sm:px-6 py-4 hidden md:table-cell">
+                      <div className="flex items-center">
+                        <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
+                          question.correct_option === 'A' ? 'bg-green-100 text-green-800' :
+                          question.correct_option === 'B' ? 'bg-blue-100 text-blue-800' :
+                          question.correct_option === 'C' ? 'bg-purple-100 text-purple-800' :
+                          'bg-orange-100 text-orange-800'
+                        }`}>
+                          {question.correct_option}
+                        </span>
+                        <span className="ml-2 text-sm text-gray-700">Option {question.correct_option}</span>
                       </div>
-                    ) : (
-                      <span className="text-gray-400 italic">No exams</span>
-                    )}
-                  </td>
-                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${
-                      question.exam_questions?.[0]?.exam?.category === 'Gengo' 
-                        ? 'bg-blue-100 text-blue-800' 
-                        : 'bg-green-100 text-green-800'
-                    }`}>
-                      {question.exam_questions?.[0]?.exam?.category || 'No Category'}
-                    </span>
-                  </td>
-                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 hidden sm:table-cell">
-                    <span className="font-medium">Option {question.correct_option}</span>
-                  </td>
-                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
-                    {new Date(question.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex justify-end space-x-2">
-                      <button
-                        onClick={() => handleEdit(question)}
-                        className="text-indigo-600 hover:text-indigo-900 p-1 rounded-md hover:bg-indigo-50 transition-colors"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(question.id)}
-                        className="text-red-600 hover:text-red-900 p-1 rounded-md hover:bg-red-50 transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </td>
+                    <td className="px-3 sm:px-6 py-4 text-sm text-gray-500 hidden lg:table-cell">
+                      <div>
+                        <div className="font-medium text-gray-900">
+                          {new Date(question.created_at).toLocaleDateString()}
+                        </div>
+                        <div className="text-xs">
+                          {new Date(question.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-3 sm:px-6 py-4 text-right text-sm font-medium">
+                      <div className="flex justify-end space-x-1">
+                        <button
+                          onClick={() => handleEdit(question)}
+                          className="p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded-md transition-colors"
+                          title="Edit question"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(question.id)}
+                          className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-md transition-colors"
+                          title="Delete question"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       ) : (
         /* Cards View */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {sortedQuestions.map((question) => (
-            <div key={question.id} className="bg-white rounded-xl shadow-sm p-4 sm:p-6 hover:shadow-md transition-shadow duration-200">
-              <div className="flex justify-between items-start mb-4">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap gap-1">
-                    <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-                      question.exam_questions?.[0]?.exam?.category === 'Gengo' 
-                        ? 'bg-blue-100 text-blue-800' 
-                        : 'bg-green-100 text-green-800'
+            <div key={question.id} className="group bg-white rounded-2xl border border-gray-200 hover:border-indigo-300 hover:shadow-lg transition-all duration-300 overflow-hidden">
+              {/* Card Header */}
+              <div className="px-6 py-4 bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-gray-100">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1 min-w-0">
+                    {question.exam_questions && question.exam_questions.length > 0 ? (
+                      <div className="space-y-1">
+                        {question.exam_questions.slice(0, 2).map((eq) => (
+                          <div key={eq.exam.id} className="flex items-center space-x-2">
+                            <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                            <span className="text-sm font-medium text-indigo-700 truncate">
+                              {eq.exam.name}
+                            </span>
+                            <span className="text-xs text-indigo-500 bg-indigo-100 px-2 py-0.5 rounded-full">
+                              {eq.exam.exam_code}
+                            </span>
+                          </div>
+                        ))}
+                        {question.exam_questions.length > 2 && (
+                          <div className="text-xs text-indigo-600 font-medium">
+                            +{question.exam_questions.length - 2} more exams
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                        <span className="text-sm text-gray-500 italic">No exams assigned</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <button
+                      onClick={() => handleEdit(question)}
+                      className="p-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100 rounded-lg transition-colors"
+                      title="Edit question"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(question.id)}
+                      className="p-2 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-lg transition-colors"
+                      title="Delete question"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Card Content */}
+              <div className="p-6">
+                <h3 className="font-semibold text-gray-900 mb-4 leading-relaxed line-clamp-3">
+                  {question.question_text}
+                </h3>
+                
+                {/* Options Grid */}
+                <div className="space-y-3 mb-6">
+                  {[
+                    { letter: 'A', text: question.option_a },
+                    { letter: 'B', text: question.option_b },
+                    { letter: 'C', text: question.option_c },
+                    { letter: 'D', text: question.option_d }
+                  ].map((option) => (
+                    <div key={option.letter} className={`flex items-start space-x-3 p-3 rounded-lg transition-colors ${
+                      question.correct_option === option.letter 
+                        ? 'bg-green-50 border border-green-200' 
+                        : 'bg-gray-50 hover:bg-gray-100'
                     }`}>
-                      {question.exam_questions?.[0]?.exam?.category || 'No Category'}
+                      <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                        question.correct_option === option.letter
+                          ? 'bg-green-500 text-white'
+                          : 'bg-gray-300 text-gray-600'
+                      }`}>
+                        {option.letter}
+                      </div>
+                      <span className={`text-sm flex-1 ${
+                        question.correct_option === option.letter 
+                          ? 'text-green-800 font-medium' 
+                          : 'text-gray-700'
+                      }`}>
+                        {option.text}
+                      </span>
+                      {question.correct_option === option.letter && (
+                        <div className="flex-shrink-0">
+                          <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                            <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Card Footer */}
+              <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <span className="text-sm font-medium text-gray-700">
+                      Correct: Option {question.correct_option}
                     </span>
                   </div>
-                  {question.exam_questions && question.exam_questions.length > 0 && (
-                    <div className="text-xs text-indigo-600 space-y-1">
-                      {question.exam_questions.map((eq) => (
-                        <div key={eq.exam.id}>
-                          📋 {eq.exam.name} ({eq.exam.exam_code})
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <div className="text-sm text-gray-500">
+                    {new Date(question.created_at).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
+                  </div>
                 </div>
-                <div className="flex space-x-1">
-                  <button
-                    onClick={() => handleEdit(question)}
-                    className="text-indigo-600 hover:text-indigo-900 p-1 rounded-md hover:bg-indigo-50 transition-colors"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(question.id)}
-                    className="text-red-600 hover:text-red-900 p-1 rounded-md hover:bg-red-50 transition-colors"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-              
-              <h3 className="font-medium text-gray-900 mb-3 line-clamp-2">
-                {question.question_text}
-              </h3>
-              
-              <div className="space-y-2 mb-4">
-                <div className="grid grid-cols-1 gap-1 text-sm text-gray-600">
-                  <div>A: {question.option_a}</div>
-                  <div>B: {question.option_b}</div>
-                  <div>C: {question.option_c}</div>
-                  <div>D: {question.option_d}</div>
-                </div>
-              </div>
-              
-              <div className="flex justify-between items-center text-sm text-gray-500">
-                <span>Answer: Option {question.correct_option}</span>
-                <span>{new Date(question.created_at).toLocaleDateString()}</span>
               </div>
             </div>
           ))}
@@ -599,16 +662,21 @@ export function QuestionManagement() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white rounded-lg border border-gray-200 p-4">
           <div className="text-sm text-gray-700">
-            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} results
+            <span className="font-medium">{((currentPage - 1) * itemsPerPage) + 1}</span>
+            {' - '}
+            <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalItems)}</span>
+            {' of '}
+            <span className="font-medium">{totalItems}</span>
+            {' results'}
           </div>
           
           <div className="flex items-center space-x-2">
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-500 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 border border-gray-300 rounded-md text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -617,10 +685,10 @@ export function QuestionManagement() {
               <button
                 key={page}
                 onClick={() => handlePageChange(page)}
-                className={`px-3 py-2 border text-sm font-medium rounded-md ${
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                   currentPage === page
-                    ? 'bg-indigo-600 border-indigo-600 text-white'
-                    : 'border-gray-300 text-gray-500 bg-white hover:bg-gray-50'
+                    ? 'bg-indigo-600 text-white'
+                    : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 {page}
@@ -630,7 +698,7 @@ export function QuestionManagement() {
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-500 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 border border-gray-300 rounded-md text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -641,7 +709,7 @@ export function QuestionManagement() {
             <select
               value={itemsPerPage}
               onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-              className="border border-gray-300 rounded-md text-sm px-2 py-1"
+              className="border border-gray-300 rounded-md text-sm px-2 py-1 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             >
               <option value={5}>5</option>
               <option value={10}>10</option>
@@ -696,7 +764,7 @@ export function QuestionManagement() {
                           className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                         />
                         <span className="text-sm text-gray-900">
-                          {exam.name} ({exam.exam_code}) - {exam.category}
+                          {exam.name} ({exam.exam_code}) 
                         </span>
                       </label>
                     ))}

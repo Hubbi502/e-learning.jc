@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Search, Calendar, Play, Pause, Users, Grid, List, ChevronUp, ChevronDown } from 'lucide-react';
+import { japaneseTheme, japaneseText, getCardClasses, getButtonClasses } from './theme';
 
 interface Exam {
   id: string;
