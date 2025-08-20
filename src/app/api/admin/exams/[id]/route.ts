@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/config/prisma";
 import { Category } from "@prisma/client";
-import { generateExamCode } from "@/utils/examCodeGenerator";
+import { generateExamCode, validateExamCode } from "@/utils/examCodeGenerator";
 
 // GET single exam
 export async function GET(
@@ -57,6 +57,8 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
     const {
+      name,
+      exam_code,
       category,
       duration,
       start_time,
@@ -79,11 +81,11 @@ export async function PUT(
     }
 
     // Basic validation
-    if (!category || !duration) {
+    if (!name || !category || !duration) {
       return NextResponse.json(
         { 
           success: false, 
-          message: "Category and duration are required" 
+          message: "Name, category and duration are required" 
         },
         { status: 400 }
       );
@@ -111,6 +113,50 @@ export async function PUT(
       );
     }
 
+    // Handle exam code
+    let finalExamCode: string = existingExam.exam_code;
+    
+    if (exam_code && exam_code.trim()) {
+      // Manual exam code provided
+      const trimmedCode = exam_code.trim().toUpperCase();
+      
+      // Only validate and check uniqueness if the code is different from existing
+      if (trimmedCode !== existingExam.exam_code) {
+        // Validate format
+        if (!validateExamCode(trimmedCode)) {
+          return NextResponse.json(
+            { 
+              success: false, 
+              message: "Invalid exam code format. Use GNG-YYYY-XXX for Gengo or BNK-YYYY-XXX for Bunka" 
+            },
+            { status: 400 }
+          );
+        }
+        
+        // Check if exam code already exists
+        const codeExists = await prisma.exam.findUnique({
+          where: { exam_code: trimmedCode }
+        });
+        
+        if (codeExists) {
+          return NextResponse.json(
+            { 
+              success: false, 
+              message: "Exam code already exists. Please choose a different code." 
+            },
+            { status: 400 }
+          );
+        }
+        
+        finalExamCode = trimmedCode;
+      }
+    } else {
+      // If category changed and no manual code provided, generate new one
+      if (existingExam.category !== category) {
+        finalExamCode = await generateExamCode(category);
+      }
+    }
+
     // Validate times if provided
     if (start_time && end_time) {
       const startDate = new Date(start_time);
@@ -128,14 +174,11 @@ export async function PUT(
     }
 
     const updateData: any = {
+      name,
+      exam_code: finalExamCode,
       category,
       duration
     };
-
-    // If category changed, generate new exam code
-    if (existingExam.category !== category) {
-      updateData.exam_code = await generateExamCode(category);
-    }
 
     if (start_time) {
       updateData.start_time = new Date(start_time);

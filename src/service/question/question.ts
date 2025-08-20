@@ -1,11 +1,10 @@
 import prisma from "@/config/prisma";
-import { Category, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import {
   CreateQuestionData,
   UpdateQuestionData,
   QuestionFilter,
   GetAllQuestionsOptions,
-  GetByCategoryOptions,
   SearchQuestionsOptions,
   ServiceResponse,
   QuestionListResponse,
@@ -13,7 +12,6 @@ import {
   validateCreateQuestion,
   validateUpdateQuestion,
   validateGetAllOptions,
-  validateGetByCategoryOptions,
   validateSearchOptions,
   validateRandomQuestionsParams,
   validateSearchTerm,
@@ -29,20 +27,46 @@ const questionService = {
     try {
       // Validate input data
       const validatedData = validateCreateQuestion(data);
-      const { categories, ...questionData } = validatedData;
-      
+      const { exam_id, exam_ids, question_text, option_a, option_b, option_c, option_d, correct_option } = validatedData;
+
+      // Create the question
       const question = await prisma.question.create({
         data: {
-          ...questionData,
-          question_categories: {
-            create: categories.map(category => ({ category }))
-          }
+          question_text: question_text.trim(),
+          option_a: option_a.trim(),
+          option_b: option_b.trim(),
+          option_c: option_c.trim(),
+          option_d: option_d.trim(),
+          correct_option,
         },
         include: {
-          answers: true,
-          question_categories: true,
-        },
+          exam_questions: {
+            include: {
+              exam: {
+                select: {
+                  id: true,
+                  name: true,
+                  exam_code: true,
+                  category: true
+                }
+              }
+            }
+          }
+        }
       });
+
+      // Handle exam relationships - prioritize exam_ids over exam_id
+      const examIdsToLink = exam_ids || (exam_id ? [exam_id] : []);
+      
+      if (examIdsToLink.length > 0) {
+        await prisma.examQuestion.createMany({
+          data: examIdsToLink.map(examId => ({
+            exam_id: examId,
+            question_id: question.id
+          }))
+        });
+      }
+
       return { success: true, data: question };
     } catch (error) {
       console.error("Error creating question:", error);
@@ -71,12 +95,10 @@ const questionService = {
       const where: Prisma.QuestionWhereInput = {};
       
       if (filter) {
-        if (filter.categories && filter.categories.length > 0) {
-          where.question_categories = {
+        if (filter.exam_id) {
+          where.exam_questions = {
             some: {
-              category: {
-                in: filter.categories
-              }
+              exam_id: filter.exam_id
             }
           };
         }
@@ -99,7 +121,18 @@ const questionService = {
           orderBy,
           include: {
             answers: includeAnswers,
-            question_categories: true,
+            exam_questions: {
+              include: {
+                exam: {
+                  select: {
+                    id: true,
+                    name: true,
+                    exam_code: true,
+                    category: true
+                  }
+                }
+              }
+            }
           },
         }),
         prisma.question.count({ where }),
@@ -107,7 +140,7 @@ const questionService = {
 
       return { 
         success: true, 
-        data: questions, 
+        data: questions,
         pagination: {
           total,
           skip,
@@ -142,7 +175,18 @@ const questionService = {
         where: { id: validatedId },
         include: {
           answers: includeAnswers,
-          question_categories: true,
+          exam_questions: {
+            include: {
+              exam: {
+                select: {
+                  id: true,
+                  name: true,
+                  exam_code: true,
+                  category: true
+                }
+              }
+            }
+          }
         },
       });
 
@@ -152,63 +196,7 @@ const questionService = {
 
       return { success: true, data: question };
     } catch (error) {
-      console.error("Error fetching question:", error);
-      if (error instanceof Error && error.name === 'ZodError') {
-        return { 
-          success: false, 
-          error: `Validation error: ${error.message}` 
-        };
-      }
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : "Unknown error occurred" 
-      };
-    }
-  },
-
-  /**
-   * Get questions by category
-   */
-  async getByCategory(category: Category, options?: unknown): Promise<QuestionListResponse> {
-    try {
-      // Validate options
-      const validatedOptions = validateGetByCategoryOptions(options);
-      const { skip = 0, take = 50, includeAnswers = false } = validatedOptions || {};
-      
-      const where = {
-        question_categories: {
-          some: {
-            category: category
-          }
-        }
-      };
-      
-      const [questions, total] = await Promise.all([
-        prisma.question.findMany({
-          where,
-          skip,
-          take,
-          orderBy: { created_at: 'desc' },
-          include: {
-            answers: includeAnswers,
-            question_categories: true,
-          },
-        }),
-        prisma.question.count({ where }),
-      ]);
-
-      return { 
-        success: true, 
-        data: questions,
-        pagination: {
-          total,
-          skip,
-          take,
-          hasMore: skip + take < total,
-        }
-      };
-    } catch (error) {
-      console.error("Error fetching questions by category:", error);
+      console.error("Error fetching question by ID:", error);
       if (error instanceof Error && error.name === 'ZodError') {
         return { 
           success: false, 
@@ -227,32 +215,73 @@ const questionService = {
    */
   async update(id: unknown, data: unknown): Promise<ServiceResponse> {
     try {
-      // Validate input data
+      // Validate ID and update data
       const validatedId = validateId(id);
       const validatedData = validateUpdateQuestion(data);
-      const { categories, ...questionData } = validatedData;
-
-      // Prepare update data
-      const updateData: any = { ...questionData };
       
-      // Handle categories update if provided
-      if (categories) {
-        updateData.question_categories = {
-          deleteMany: {},
-          create: categories.map(category => ({ category }))
-        };
-      }
+      // Extract exam IDs before updating the question
+      const { exam_id, exam_ids, ...questionData } = validatedData;
 
+      // Update the question
       const question = await prisma.question.update({
         where: { id: validatedId },
-        data: updateData,
+        data: questionData,
         include: {
-          answers: true,
-          question_categories: true,
-        },
+          exam_questions: {
+            include: {
+              exam: {
+                select: {
+                  id: true,
+                  name: true,
+                  exam_code: true,
+                  category: true
+                }
+              }
+            }
+          }
+        }
       });
 
-      return { success: true, data: question };
+      // Handle exam relationships if provided
+      const examIdsToLink = exam_ids || (exam_id ? [exam_id] : null);
+      
+      if (examIdsToLink !== null) {
+        // Remove existing exam relationships
+        await prisma.examQuestion.deleteMany({
+          where: { question_id: validatedId }
+        });
+
+        // Add new exam relationships
+        if (examIdsToLink.length > 0) {
+          await prisma.examQuestion.createMany({
+            data: examIdsToLink.map(examId => ({
+              exam_id: examId,
+              question_id: validatedId
+            }))
+          });
+        }
+      }
+
+      // Fetch updated question with relationships
+      const updatedQuestion = await prisma.question.findUnique({
+        where: { id: validatedId },
+        include: {
+          exam_questions: {
+            include: {
+              exam: {
+                select: {
+                  id: true,
+                  name: true,
+                  exam_code: true,
+                  category: true
+                }
+              }
+            }
+          }
+        }
+      });
+
+      return { success: true, data: updatedQuestion };
     } catch (error) {
       console.error("Error updating question:", error);
       if (error instanceof Error && error.name === 'ZodError') {
@@ -261,10 +290,8 @@ const questionService = {
           error: `Validation error: ${error.message}` 
         };
       }
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          return { success: false, error: "Question not found" };
-        }
+      if (error instanceof Error && error.message.includes('Record to update not found')) {
+        return { success: false, error: "Question not found" };
       }
       return { 
         success: false, 
@@ -294,10 +321,8 @@ const questionService = {
           error: `Validation error: ${error.message}` 
         };
       }
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          return { success: false, error: "Question not found" };
-        }
+      if (error instanceof Error && error.message.includes('Record to delete does not exist')) {
+        return { success: false, error: "Question not found" };
       }
       return { 
         success: false, 
@@ -317,18 +342,18 @@ const questionService = {
       const result = await prisma.question.deleteMany({
         where: {
           id: {
-            in: validatedIds,
-          },
-        },
+            in: validatedIds
+          }
+        }
       });
 
       return { 
         success: true, 
-        message: `${result.count} questions deleted successfully`,
+        message: `Successfully deleted ${result.count} question(s)`,
         data: { deletedCount: result.count }
       };
     } catch (error) {
-      console.error("Error deleting questions:", error);
+      console.error("Error deleting multiple questions:", error);
       if (error instanceof Error && error.name === 'ZodError') {
         return { 
           success: false, 
@@ -348,20 +373,18 @@ const questionService = {
   async getRandomQuestions(params: unknown): Promise<ServiceResponse> {
     try {
       // Validate parameters
-      const { categories, count } = validateRandomQuestionsParams(params);
+      const { exam_id, count } = validateRandomQuestionsParams(params);
       
-      // Build where clause for categories
-      const where = categories && categories.length > 0 ? {
-        question_categories: {
+      // Build where clause for exam
+      const where: Prisma.QuestionWhereInput = exam_id ? {
+        exam_questions: {
           some: {
-            category: {
-              in: categories
-            }
+            exam_id: exam_id
           }
         }
       } : {};
       
-      // First get the total count of questions in the categories
+      // First get the total count of questions in the exam
       const totalQuestions = await prisma.question.count({ where });
 
       if (totalQuestions < count) {
@@ -372,22 +395,31 @@ const questionService = {
       }
 
       // Get random questions using a more efficient approach
-      // Since PostgreSQL raw query is complex with the many-to-many relationship,
-      // we'll use a simpler approach: get all matching questions and randomize in memory
       const allQuestions = await prisma.question.findMany({
         where,
         include: {
-          question_categories: true,
+          exam_questions: {
+            include: {
+              exam: {
+                select: {
+                  id: true,
+                  name: true,
+                  exam_code: true,
+                  category: true
+                }
+              }
+            }
+          }
         },
       });
 
-      // Randomize and take the required count
+      // Shuffle the array and take the requested count
       const shuffled = allQuestions.sort(() => 0.5 - Math.random());
       const randomQuestions = shuffled.slice(0, count);
 
       return { success: true, data: randomQuestions };
     } catch (error) {
-      console.error("Error fetching random questions:", error);
+      console.error("Error getting random questions:", error);
       if (error instanceof Error && error.name === 'ZodError') {
         return { 
           success: false, 
@@ -406,36 +438,45 @@ const questionService = {
    */
   async getStatistics(): Promise<ServiceResponse<QuestionStatistics>> {
     try {
-      const [totalQuestions, gengoCount, bunkaCount] = await Promise.all([
-        prisma.question.count(),
-        prisma.question.count({ 
-          where: { 
-            question_categories: {
-              some: {
-                category: Category.Gengo
-              }
+      const totalQuestions = await prisma.question.count();
+
+      // Get count by exam through ExamQuestion table
+      const examQuestions = await prisma.examQuestion.findMany({
+        include: {
+          exam: {
+            select: {
+              id: true,
+              name: true
             }
-          } 
-        }),
-        prisma.question.count({ 
-          where: { 
-            question_categories: {
-              some: {
-                category: Category.Bunka
-              }
-            }
-          } 
-        }),
-      ]);
+          }
+        }
+      });
+
+      const byExam: Record<string, number> = {};
+      for (const examQuestion of examQuestions) {
+        const examId = examQuestion.exam_id;
+        byExam[examId] = (byExam[examId] || 0) + 1;
+      }
+
+      // Get questions without any exam relationship
+      const questionsWithExam = await prisma.question.count({
+        where: {
+          exam_questions: {
+            some: {}
+          }
+        }
+      });
+
+      const questionsWithoutExam = totalQuestions - questionsWithExam;
+      if (questionsWithoutExam > 0) {
+        byExam['standalone'] = questionsWithoutExam;
+      }
 
       return {
         success: true,
         data: {
           total: totalQuestions,
-          byCategory: {
-            Gengo: gengoCount,
-            Bunka: bunkaCount,
-          },
+          byExam,
         },
       };
     } catch (error) {
@@ -455,7 +496,7 @@ const questionService = {
       // Validate search term and options
       const validatedSearchTerm = validateSearchTerm(searchTerm);
       const validatedOptions = validateSearchOptions(options);
-      const { category, skip = 0, take = 50 } = validatedOptions || {};
+      const { exam_id, skip = 0, take = 50 } = validatedOptions || {};
       
       const where: Prisma.QuestionWhereInput = {
         OR: [
@@ -492,10 +533,10 @@ const questionService = {
         ],
       };
 
-      if (category) {
-        where.question_categories = {
+      if (exam_id) {
+        where.exam_questions = {
           some: {
-            category: category
+            exam_id: exam_id
           }
         };
       }
@@ -507,7 +548,18 @@ const questionService = {
           take,
           orderBy: { created_at: 'desc' },
           include: {
-            question_categories: true,
+            exam_questions: {
+              include: {
+                exam: {
+                  select: {
+                    id: true,
+                    name: true,
+                    exam_code: true,
+                    category: true
+                  }
+                }
+              }
+            }
           },
         }),
         prisma.question.count({ where }),

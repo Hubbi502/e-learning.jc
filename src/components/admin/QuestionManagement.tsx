@@ -5,7 +5,14 @@ import { Plus, Edit, Trash2, Search, Filter, BookOpen, Grid, List, ChevronUp, Ch
 
 interface Question {
   id: string;
-  categories: ('Gengo' | 'Bunka')[];
+  exam_questions?: Array<{
+    exam: {
+      id: string;
+      name: string;
+      exam_code: string;
+      category: 'Gengo' | 'Bunka';
+    };
+  }>;
   question_text: string;
   option_a: string;
   option_b: string;
@@ -14,15 +21,10 @@ interface Question {
   correct_option: 'A' | 'B' | 'C' | 'D';
   created_at: string;
   updated_at: string;
-  question_categories?: Array<{
-    id: string;
-    category: 'Gengo' | 'Bunka';
-    created_at: string;
-  }>;
 }
 
 interface QuestionFormData {
-  categories: ('Gengo' | 'Bunka')[];
+  exam_ids: string[];
   question_text: string;
   option_a: string;
   option_b: string;
@@ -33,20 +35,24 @@ interface QuestionFormData {
 
 export function QuestionManagement() {
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [exams, setExams] = useState<Array<{id: string; name: string; exam_code: string; category: 'Gengo' | 'Bunka'}>>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'Gengo' | 'Bunka'>('all');
+  const [examFilter, setExamFilter] = useState<'all' | string>('all');
   const [showForm, setShowForm] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
-  const [sortField, setSortField] = useState<'question_text' | 'categories' | 'created_at' | 'correct_option'>('created_at');
+  const [sortField, setSortField] = useState<'question_text' | 'category' | 'created_at' | 'correct_option'>('created_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  
+  // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [formData, setFormData] = useState<QuestionFormData>({
-    categories: ['Gengo'],
+    exam_ids: [],
     question_text: '',
     option_a: '',
     option_b: '',
@@ -57,7 +63,8 @@ export function QuestionManagement() {
 
   useEffect(() => {
     fetchQuestions();
-  }, [currentPage, itemsPerPage, searchTerm, categoryFilter]);
+    fetchExams();
+  }, [currentPage, itemsPerPage, searchTerm, categoryFilter, examFilter]);
 
   const fetchQuestions = async () => {
     try {
@@ -74,6 +81,10 @@ export function QuestionManagement() {
       if (categoryFilter !== 'all') {
         params.append('category', categoryFilter);
       }
+
+      if (examFilter !== 'all') {
+        params.append('exam_id', examFilter);
+      }
       
       const response = await fetch(`/api/admin/questions?${params}`);
       if (response.ok) {
@@ -89,15 +100,26 @@ export function QuestionManagement() {
     }
   };
 
+  const fetchExams = async () => {
+    try {
+      const response = await fetch('/api/admin/exams?limit=100');
+      if (response.ok) {
+        const data = await response.json();
+        setExams(data.exams || []);
+      }
+    } catch (error) {
+      console.error('Error fetching exams:', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate that at least one category is selected
-    if (formData.categories.length === 0) {
-      alert('Please select at least one category');
+    if (formData.exam_ids.length === 0) {
+      alert('Please select at least one exam');
       return;
     }
-    
+
     try {
       const url = editingQuestion 
         ? `/api/admin/questions/${editingQuestion.id}`
@@ -116,13 +138,9 @@ export function QuestionManagement() {
       if (response.ok) {
         await fetchQuestions();
         resetForm();
-        // Reset to first page when adding/editing questions
-        if (currentPage !== 1) {
-          setCurrentPage(1);
-        }
       } else {
-        const error = await response.json();
-        alert(error.message || 'Failed to save question');
+        const errorData = await response.json();
+        alert(errorData.message || 'Failed to save question');
       }
     } catch (error) {
       console.error('Error saving question:', error);
@@ -133,7 +151,7 @@ export function QuestionManagement() {
   const handleEdit = (question: Question) => {
     setEditingQuestion(question);
     setFormData({
-      categories: question.categories || [],
+      exam_ids: question.exam_questions ? question.exam_questions.map(eq => eq.exam.id) : [],
       question_text: question.question_text,
       option_a: question.option_a,
       option_b: question.option_b,
@@ -165,7 +183,7 @@ export function QuestionManagement() {
 
   const resetForm = () => {
     setFormData({
-      categories: ['Gengo'],
+      exam_ids: [],
       question_text: '',
       option_a: '',
       option_b: '',
@@ -189,6 +207,12 @@ export function QuestionManagement() {
     setCurrentPage(1); // Reset to first page when filtering
   };
 
+  // Handle exam filter change
+  const handleExamFilterChange = (examId: 'all' | string) => {
+    setExamFilter(examId);
+    setCurrentPage(1); // Reset to first page when filtering
+  };
+
   // Handle page change
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -200,10 +224,8 @@ export function QuestionManagement() {
     setCurrentPage(1); // Reset to first page when changing items per page
   };
 
-  // Since we're now getting filtered data from the API, we don't need client-side filtering
-  const filteredQuestions = questions;
-
-  const handleSort = (field: typeof sortField) => {
+  // Sorting logic
+  const handleSort = (field: 'question_text' | 'category' | 'created_at' | 'correct_option') => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -212,693 +234,583 @@ export function QuestionManagement() {
     }
   };
 
-  // Client-side sorting since API doesn't handle sorting yet
-  const sortedQuestions = [...filteredQuestions].sort((a, b) => {
-    let comparison = 0;
-    
+  // Apply sorting to questions
+  const sortedQuestions = [...questions].sort((a, b) => {
+    let aValue: any;
+    let bValue: any;
+
     switch (sortField) {
       case 'question_text':
-        comparison = a.question_text.localeCompare(b.question_text);
+        aValue = a.question_text.toLowerCase();
+        bValue = b.question_text.toLowerCase();
         break;
-      case 'categories':
-        comparison = a.categories.join(', ').localeCompare(b.categories.join(', '));
+      case 'category':
+        aValue = a.exam_questions?.[0]?.exam?.category || '';
+        bValue = b.exam_questions?.[0]?.exam?.category || '';
         break;
       case 'created_at':
-        comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        aValue = new Date(a.created_at);
+        bValue = new Date(b.created_at);
         break;
       case 'correct_option':
-        comparison = a.correct_option.localeCompare(b.correct_option);
+        aValue = a.correct_option;
+        bValue = b.correct_option;
         break;
+      default:
+        return 0;
     }
-    
-    return sortDirection === 'asc' ? comparison : -comparison;
+
+    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
   });
 
-  // Pagination component
-  const PaginationComponent = () => {
-    const startItem = (currentPage - 1) * itemsPerPage + 1;
-    const endItem = Math.min(currentPage * itemsPerPage, totalItems);
-    
-    return (
-      <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-        <div className="flex-1 flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <p className="text-sm text-gray-700">
-              Showing <span className="font-medium">{startItem}</span> to{' '}
-              <span className="font-medium">{endItem}</span> of{' '}
-              <span className="font-medium">{totalItems}</span> results
-            </p>
-            <div className="flex items-center space-x-2">
-              <label className="text-sm text-gray-700">Items per page:</label>
-              <select
-                value={itemsPerPage}
-                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                className="border border-gray-300 rounded-md px-2 py-1 text-sm text-gray-600"
-              >
-                <option value={5}>5</option>
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-              </select>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage <= 1}
-              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              Previous
-            </button>
-            
-            <div className="flex items-center space-x-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPage <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPage >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = currentPage - 2 + i;
-                }
-                
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => handlePageChange(pageNum)}
-                    className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium rounded-md ${
-                      currentPage === pageNum
-                        ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
-                        : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-            </div>
-            
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage >= totalPages}
-              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+  // Generate page numbers for pagination
+  const generatePageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    return pages;
   };
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-48 sm:h-64">
-        <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-b-2 border-indigo-600 mb-4"></div>
-        <p className="text-sm sm:text-base text-gray-500">Loading questions...</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
-        <div className="flex items-center">
-          <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-indigo-600 mr-2 flex-shrink-0" />
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Question Management</h1>
+    <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Question Management</h2>
+          <p className="text-gray-600 text-sm sm:text-base">Manage exam questions</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center justify-center px-4 py-2.5 sm:py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 text-sm sm:text-base"
+          className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm sm:text-base"
         >
-          <Plus className="h-4 w-4 mr-2 flex-shrink-0" />
+          <Plus className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
           Add Question
         </button>
       </div>
 
-      {/* Filters and View Toggle */}
-      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
-        <div className="flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between">
-          <div className="flex flex-col sm:flex-row gap-4 flex-1">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 sm:h-5 sm:w-5" />
-                <input
-                  type="text"
-                  placeholder="Search questions..."
-                  value={searchTerm}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  className="w-full pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white placeholder-gray-500 text-sm sm:text-base"
-                />
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Filter className="h-4 w-4 text-gray-400 flex-shrink-0" />
-              <select
-                value={categoryFilter}
-                onChange={(e) => handleCategoryFilterChange(e.target.value as 'all' | 'Gengo' | 'Bunka')}
-                className="px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white text-sm sm:text-base"
-              >
-                <option value="all">All Categories</option>
-                <option value="Gengo">Gengo (Language)</option>
-                <option value="Bunka">Bunka (Culture)</option>
-              </select>
-            </div>
+      {/* Filters */}
+      <div className="mb-6 flex flex-col sm:flex-row gap-4">
+        <div className="flex-1">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search questions..."
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="w-full pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white placeholder-gray-500 text-sm sm:text-base"
+            />
           </div>
-          
-          {/* View Toggle */}
-          <div className="flex items-center bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => setViewMode('cards')}
-              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'cards'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <Grid className="h-4 w-4 mr-1" />
-              Cards
-            </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                viewMode === 'table'
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <List className="h-4 w-4 mr-1" />
-              Table
-            </button>
-          </div>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Filter className="h-4 w-4 text-gray-400 flex-shrink-0" />
+          <select
+            value={categoryFilter}
+            onChange={(e) => handleCategoryFilterChange(e.target.value as 'all' | 'Gengo' | 'Bunka')}
+            className="px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white text-sm sm:text-base"
+          >
+            <option value="all">All Categories</option>
+            <option value="Gengo">Gengo (Language)</option>
+            <option value="Bunka">Bunka (Culture)</option>
+          </select>
+        </div>
+        <div className="flex items-center space-x-2">
+          <select
+            value={examFilter}
+            onChange={(e) => handleExamFilterChange(e.target.value)}
+            className="px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white text-sm sm:text-base"
+          >
+            <option value="all">All Exams</option>
+            {exams.map((exam) => (
+              <option key={exam.id} value={exam.id}>
+                {exam.name} ({exam.exam_code})
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {/* Question Form Modal */}
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Overlay */}
-          <div 
-            className="fixed inset-0 bg-black/50 transition-opacity" 
-            onClick={resetForm}
-          ></div>
-          
-          {/* Modal Content */}
-          <div className="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <form onSubmit={handleSubmit} className="p-4 sm:p-6">
-                <div className="flex justify-between items-center mb-4 sm:mb-6">
-                  <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-                    {editingQuestion ? 'Edit Question' : 'Add New Question'}
-                  </h2>
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 transition-colors"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Categories (Select one or more)
-                    </label>
-                    <div className="space-y-2">
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={formData.categories.includes('Gengo')}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setFormData({ 
-                                ...formData, 
-                                categories: [...formData.categories, 'Gengo'] 
-                              });
-                            } else {
-                              setFormData({ 
-                                ...formData, 
-                                categories: formData.categories.filter(cat => cat !== 'Gengo') 
-                              });
-                            }
-                          }}
-                          className="mr-2 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                        />
-                        <span className="text-sm text-gray-700">Gengo (Language)</span>
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={formData.categories.includes('Bunka')}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setFormData({ 
-                                ...formData, 
-                                categories: [...formData.categories, 'Bunka'] 
-                              });
-                            } else {
-                              setFormData({ 
-                                ...formData, 
-                                categories: formData.categories.filter(cat => cat !== 'Bunka') 
-                              });
-                            }
-                          }}
-                          className="mr-2 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                        />
-                        <span className="text-sm text-gray-700">Bunka (Culture)</span>
-                      </label>
-                    </div>
-                    {formData.categories.length === 0 && (
-                      <p className="mt-1 text-sm text-red-600">At least one category must be selected</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Question Text
-                    </label>
-                    <textarea
-                      value={formData.question_text}
-                      onChange={(e) => setFormData({ ...formData, question_text: e.target.value })}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white placeholder-gray-500 text-sm sm:text-base"
-                      rows={3}
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Option A
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.option_a}
-                        onChange={(e) => setFormData({ ...formData, option_a: e.target.value })}
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white placeholder-gray-500 text-sm sm:text-base"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Option B
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.option_b}
-                        onChange={(e) => setFormData({ ...formData, option_b: e.target.value })}
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white placeholder-gray-500 text-sm sm:text-base"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Option C
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.option_c}
-                        onChange={(e) => setFormData({ ...formData, option_c: e.target.value })}
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white placeholder-gray-500 text-sm sm:text-base"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Option D
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.option_d}
-                        onChange={(e) => setFormData({ ...formData, option_d: e.target.value })}
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white placeholder-gray-500 text-sm sm:text-base"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Correct Answer
-                    </label>
-                    <select
-                      value={formData.correct_option}
-                      onChange={(e) => setFormData({ ...formData, correct_option: e.target.value as 'A' | 'B' | 'C' | 'D' })}
-                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white text-sm sm:text-base"
-                      required
-                    >
-                      <option value="A">Option A</option>
-                      <option value="B">Option B</option>
-                      <option value="C">Option C</option>
-                      <option value="D">Option D</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-3 mt-6">
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="w-full sm:w-auto px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-200 text-sm sm:text-base"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 text-sm sm:text-base"
-                  >
-                    {editingQuestion ? 'Update' : 'Create'} Question
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+      {/* View Toggle */}
+      <div className="flex items-center bg-gray-100 rounded-lg p-1 mb-6">
+        <button
+          onClick={() => setViewMode('cards')}
+          className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+            viewMode === 'cards'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Grid className="h-4 w-4 mr-1" />
+          Cards
+        </button>
+        <button
+          onClick={() => setViewMode('table')}
+          className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+            viewMode === 'table'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <List className="h-4 w-4 mr-1" />
+          Table
+        </button>
+      </div>
 
       {/* Questions Content */}
-      {viewMode === 'table' ? (
-        /* Table View */
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          {sortedQuestions.length === 0 ? (
-            <div className="text-center py-12 sm:py-16">
-              <BookOpen className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500 text-sm sm:text-base">
-                {searchTerm || categoryFilter !== 'all' ? 'No questions found matching your criteria' : 'No questions found'}
-              </p>
-              {!searchTerm && categoryFilter === 'all' && (
-                <button
-                  onClick={() => setShowForm(true)}
-                  className="mt-4 text-indigo-600 hover:text-indigo-700 text-sm sm:text-base font-medium"
-                >
-                  Create your first question
-                </button>
-              )}
-            </div>
-          ) : (
-            <>
-              {/* Summary Stats */}
-              <div className="bg-gray-50 px-4 sm:px-6 py-3 border-b border-gray-200">
-                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
-                  <span className="font-medium">
-                    Showing {sortedQuestions.length} of {totalItems} question{totalItems !== 1 ? 's' : ''}
-                  </span>
-                  <span>
-                    Page {currentPage} of {totalPages}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="overflow-x-auto">
-                <table className="w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th 
-                        className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                        onClick={() => handleSort('question_text')}
-                      >
-                        <div className="flex items-center">
-                          Question
-                          {sortField === 'question_text' && (
-                            sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
-                          )}
-                        </div>
-                      </th>
-                      <th 
-                        className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
-                        onClick={() => handleSort('categories')}
-                      >
-                        <div className="flex items-center">
-                          Categories
-                          {sortField === 'categories' && (
-                            sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
-                          )}
-                        </div>
-                      </th>
-                      <th 
-                        className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors hidden sm:table-cell"
-                        onClick={() => handleSort('correct_option')}
-                      >
-                        <div className="flex items-center">
-                          Correct Answer
-                          {sortField === 'correct_option' && (
-                            sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
-                          )}
-                        </div>
-                      </th>
-                      <th 
-                        className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors hidden md:table-cell"
-                        onClick={() => handleSort('created_at')}
-                      >
-                        <div className="flex items-center">
-                          Created
-                          {sortField === 'created_at' && (
-                            sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
-                          )}
-                        </div>
-                      </th>
-                      <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {sortedQuestions.map((question) => (
-                      <tr key={question.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 sm:px-6 py-4">
-                          <div className="max-w-sm">
-                            <p className="text-sm sm:text-base font-medium text-gray-900 line-clamp-2">
-                              {question.question_text}
-                            </p>
-                            <div className="text-xs text-gray-500 mt-2 space-y-1">
-                              <div>A: <span className="font-medium">{question.option_a}</span></div>
-                              <div>B: <span className="font-medium">{question.option_b}</span></div>
-                              <div>C: <span className="font-medium">{question.option_c}</span></div>
-                              <div>D: <span className="font-medium">{question.option_d}</span></div>
-                            </div>
-                            {/* Mobile: Show additional info */}
-                            <div className="mt-2 sm:hidden space-y-1">
-                              <div className="flex items-center flex-wrap gap-1">
-                                {question.categories.map((category) => (
-                                  <span key={category} className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                                    category === 'Gengo' 
-                                      ? 'bg-blue-100 text-blue-800' 
-                                      : 'bg-green-100 text-green-800'
-                                  }`}>
-                                    {category}
-                                  </span>
-                                ))}
-                                <span className="ml-2 text-xs text-gray-500">
-                                  Answer: Option {question.correct_option}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                          <div className="flex flex-wrap gap-1">
-                            {question.categories.map((category) => (
-                              <span key={category} className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${
-                                category === 'Gengo' 
-                                  ? 'bg-blue-100 text-blue-800' 
-                                  : 'bg-green-100 text-green-800'
-                              }`}>
-                                {category}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 hidden sm:table-cell">
-                          <span className="font-medium">Option {question.correct_option}</span>
-                          <div className="text-xs text-gray-500 mt-1">
-                            {question.correct_option === 'A' ? question.option_a :
-                             question.correct_option === 'B' ? question.option_b :
-                             question.correct_option === 'C' ? question.option_c :
-                             question.option_d}
-                          </div>
-                        </td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden md:table-cell">
-                          {new Date(question.created_at).toLocaleDateString()}
-                        </td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex items-center justify-end space-x-2">
-                            <button
-                              onClick={() => handleEdit(question)}
-                              className="text-indigo-600 hover:text-indigo-900 p-1 rounded hover:bg-indigo-50 transition-colors"
-                              title="Edit question"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(question.id)}
-                              className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
-                              title="Delete question"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              
-              {/* Pagination */}
-              <PaginationComponent />
-            </>
+      {loading ? (
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        </div>
+      ) : questions.length === 0 ? (
+        <div className="text-center py-12">
+          <BookOpen className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-500 text-sm sm:text-base">
+            {searchTerm || categoryFilter !== 'all' || examFilter !== 'all' ? 'No questions found matching your criteria' : 'No questions found'}
+          </p>
+          {!searchTerm && categoryFilter === 'all' && examFilter === 'all' && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="mt-4 text-indigo-600 hover:text-indigo-700 text-sm sm:text-base font-medium"
+            >
+              Create your first question
+            </button>
           )}
         </div>
-      ) : (
-        /* Card View */
-        <>
-          {/* Sort Controls for Card View */}
-          {sortedQuestions.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
-              <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
-                <span className="font-medium mr-2">Sort by:</span>
-                <button
+      ) : viewMode === 'table' ? (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th 
+                  className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
                   onClick={() => handleSort('question_text')}
-                  className={`px-3 py-1 rounded-md transition-colors ${
-                    sortField === 'question_text' 
-                      ? 'bg-indigo-100 text-indigo-700 font-medium' 
-                      : 'bg-gray-100 hover:bg-gray-200'
-                  }`}
                 >
-                  Question {sortField === 'question_text' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </button>
-                <button
-                  onClick={() => handleSort('categories')}
-                  className={`px-3 py-1 rounded-md transition-colors ${
-                    sortField === 'categories' 
-                      ? 'bg-indigo-100 text-indigo-700 font-medium' 
-                      : 'bg-gray-100 hover:bg-gray-200'
-                  }`}
+                  <div className="flex items-center">
+                    Question
+                    {sortField === 'question_text' && (
+                      sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
+                    )}
+                  </div>
+                </th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Exam
+                </th>
+                <th 
+                  className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                  onClick={() => handleSort('category')}
                 >
-                  Category {sortField === 'categories' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </button>
-                <button
-                  onClick={() => handleSort('created_at')}
-                  className={`px-3 py-1 rounded-md transition-colors ${
-                    sortField === 'created_at' 
-                      ? 'bg-indigo-100 text-indigo-700 font-medium' 
-                      : 'bg-gray-100 hover:bg-gray-200'
-                  }`}
-                >
-                  Date {sortField === 'created_at' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </button>
-                <button
+                  <div className="flex items-center">
+                    Category
+                    {sortField === 'category' && (
+                      sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors hidden sm:table-cell"
                   onClick={() => handleSort('correct_option')}
-                  className={`px-3 py-1 rounded-md transition-colors ${
-                    sortField === 'correct_option' 
-                      ? 'bg-indigo-100 text-indigo-700 font-medium' 
-                      : 'bg-gray-100 hover:bg-gray-200'
-                  }`}
                 >
-                  Answer {sortField === 'correct_option' && (sortDirection === 'asc' ? '↑' : '↓')}
-                </button>
-              </div>
-            </div>
-          )}
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-            {sortedQuestions.length === 0 ? (
-              <div className="col-span-full text-center py-12 sm:py-16">
-                <BookOpen className="h-12 w-12 sm:h-16 sm:w-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500 text-sm sm:text-base">
-                  {searchTerm || categoryFilter !== 'all' ? 'No questions found matching your criteria' : 'No questions found'}
-                </p>
-                {!searchTerm && categoryFilter === 'all' && (
-                  <button
-                    onClick={() => setShowForm(true)}
-                    className="mt-4 text-indigo-600 hover:text-indigo-700 text-sm sm:text-base font-medium"
-                  >
-                    Create your first question
-                  </button>
-                )}
-              </div>
-            ) : (
-              sortedQuestions.map((question) => (
-                <div key={question.id} className="bg-white rounded-xl shadow-sm p-4 sm:p-6 hover:shadow-md transition-shadow duration-200">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex flex-wrap gap-1">
-                      {question.categories.map((category) => (
-                        <span key={category} className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-                          category === 'Gengo' 
-                            ? 'bg-blue-100 text-blue-800' 
-                            : 'bg-green-100 text-green-800'
-                        }`}>
-                          {category}
-                        </span>
-                      ))}
+                  <div className="flex items-center">
+                    Answer
+                    {sortField === 'correct_option' && (
+                      sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors hidden sm:table-cell"
+                  onClick={() => handleSort('created_at')}
+                >
+                  <div className="flex items-center">
+                    Created
+                    {sortField === 'created_at' && (
+                      sortDirection === 'asc' ? <ChevronUp className="ml-1 h-4 w-4" /> : <ChevronDown className="ml-1 h-4 w-4" />
+                    )}
+                  </div>
+                </th>
+                <th className="px-4 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {sortedQuestions.map((question) => (
+                <tr key={question.id} className="hover:bg-gray-50">
+                  <td className="px-4 sm:px-6 py-4">
+                    <div className="max-w-xs sm:max-w-sm">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {question.question_text}
+                      </p>
+                      <div className="mt-1 text-xs text-gray-500 grid grid-cols-2 gap-1">
+                        <div>A: <span className="font-medium">{question.option_a}</span></div>
+                        <div>B: <span className="font-medium">{question.option_b}</span></div>
+                        <div>C: <span className="font-medium">{question.option_c}</span></div>
+                        <div>D: <span className="font-medium">{question.option_d}</span></div>
+                      </div>
+                      {/* Mobile: Show additional info */}
+                      <div className="mt-2 sm:hidden space-y-1">
+                        {question.exam_questions && question.exam_questions.length > 0 && (
+                          <div className="text-xs text-indigo-600 space-y-1">
+                            {question.exam_questions.map((eq) => (
+                              <div key={eq.exam.id}>
+                                📋 {eq.exam.name} ({eq.exam.exam_code})
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                            question.exam_questions?.[0]?.exam?.category === 'Gengo' 
+                              ? 'bg-blue-100 text-blue-800' 
+                              : 'bg-green-100 text-green-800'
+                          }`}>
+                            {question.exam_questions?.[0]?.exam?.category || 'No Category'}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            Answer: Option {question.correct_option}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex space-x-2 ml-2">
+                  </td>
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {question.exam_questions && question.exam_questions.length > 0 ? (
+                      <div className="space-y-1">
+                        {question.exam_questions.map((eq) => (
+                          <div key={eq.exam.id}>
+                            <div className="font-medium text-indigo-600">{eq.exam.name}</div>
+                            <div className="text-xs text-gray-500">{eq.exam.exam_code}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 italic">No exams</span>
+                    )}
+                  </td>
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${
+                      question.exam_questions?.[0]?.exam?.category === 'Gengo' 
+                        ? 'bg-blue-100 text-blue-800' 
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      {question.exam_questions?.[0]?.exam?.category || 'No Category'}
+                    </span>
+                  </td>
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900 hidden sm:table-cell">
+                    <span className="font-medium">Option {question.correct_option}</span>
+                  </td>
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 hidden sm:table-cell">
+                    {new Date(question.created_at).toLocaleDateString()}
+                  </td>
+                  <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex justify-end space-x-2">
                       <button
                         onClick={() => handleEdit(question)}
-                        className="text-indigo-600 hover:bg-indigo-50 p-1 rounded-lg transition-colors"
-                        title="Edit question"
+                        className="text-indigo-600 hover:text-indigo-900 p-1 rounded-md hover:bg-indigo-50 transition-colors"
                       >
                         <Edit className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(question.id)}
-                        className="text-red-600 hover:bg-red-50 p-1 rounded-lg transition-colors"
-                        title="Delete question"
+                        className="text-red-600 hover:text-red-900 p-1 rounded-md hover:bg-red-50 transition-colors"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        /* Cards View */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          {sortedQuestions.map((question) => (
+            <div key={question.id} className="bg-white rounded-xl shadow-sm p-4 sm:p-6 hover:shadow-md transition-shadow duration-200">
+              <div className="flex justify-between items-start mb-4">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-1">
+                    <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+                      question.exam_questions?.[0]?.exam?.category === 'Gengo' 
+                        ? 'bg-blue-100 text-blue-800' 
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      {question.exam_questions?.[0]?.exam?.category || 'No Category'}
+                    </span>
                   </div>
-
-                  <div className="mb-4">
-                    <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 leading-relaxed">
-                      {question.question_text}
-                    </h3>
-                    
-                    <div className="space-y-2">
-                      {(['A', 'B', 'C', 'D'] as const).map((option) => (
-                        <div 
-                          key={option}
-                          className={`p-2 rounded-lg text-sm border ${
-                            question.correct_option === option
-                              ? 'bg-green-50 border-green-200 text-green-800'
-                              : 'bg-gray-50 border-gray-200 text-gray-700'
-                          }`}
-                        >
-                          <span className="font-medium">{option}:</span> {
-                            option === 'A' ? question.option_a :
-                            option === 'B' ? question.option_b :
-                            option === 'C' ? question.option_c :
-                            question.option_d
-                          }
-                          {question.correct_option === option && (
-                            <span className="ml-2 text-green-600 font-medium text-xs">✓ Correct</span>
-                          )}
+                  {question.exam_questions && question.exam_questions.length > 0 && (
+                    <div className="text-xs text-indigo-600 space-y-1">
+                      {question.exam_questions.map((eq) => (
+                        <div key={eq.exam.id}>
+                          📋 {eq.exam.name} ({eq.exam.exam_code})
                         </div>
                       ))}
                     </div>
-                  </div>
-
-                  <div className="text-xs text-gray-500 border-t pt-3">
-                    Created: {new Date(question.created_at).toLocaleDateString()}
-                  </div>
+                  )}
                 </div>
-              ))
-            )}
+                <div className="flex space-x-1">
+                  <button
+                    onClick={() => handleEdit(question)}
+                    className="text-indigo-600 hover:text-indigo-900 p-1 rounded-md hover:bg-indigo-50 transition-colors"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(question.id)}
+                    className="text-red-600 hover:text-red-900 p-1 rounded-md hover:bg-red-50 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              
+              <h3 className="font-medium text-gray-900 mb-3 line-clamp-2">
+                {question.question_text}
+              </h3>
+              
+              <div className="space-y-2 mb-4">
+                <div className="grid grid-cols-1 gap-1 text-sm text-gray-600">
+                  <div>A: {question.option_a}</div>
+                  <div>B: {question.option_b}</div>
+                  <div>C: {question.option_c}</div>
+                  <div>D: {question.option_d}</div>
+                </div>
+              </div>
+              
+              <div className="flex justify-between items-center text-sm text-gray-500">
+                <span>Answer: Option {question.correct_option}</span>
+                <span>{new Date(question.created_at).toLocaleDateString()}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="text-sm text-gray-700">
+            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} results
           </div>
           
-          {/* Pagination for Card View */}
-          {sortedQuestions.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <PaginationComponent />
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-500 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            
+            {generatePageNumbers().map((page) => (
+              <button
+                key={page}
+                onClick={() => handlePageChange(page)}
+                className={`px-3 py-2 border text-sm font-medium rounded-md ${
+                  currentPage === page
+                    ? 'bg-indigo-600 border-indigo-600 text-white'
+                    : 'border-gray-300 text-gray-500 bg-white hover:bg-gray-50'
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+            
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-500 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-700">Show:</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+              className="border border-gray-300 rounded-md text-sm px-2 py-1"
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
+        </div>
+      )}
+
+      {/* Form Modal */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {editingQuestion ? 'Edit Question' : 'Add New Question'}
+                </h3>
+                <button
+                  onClick={resetForm}
+                  className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Exams *
+                  </label>
+                  <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-300 rounded-lg p-3">
+                    {exams.map((exam) => (
+                      <label key={exam.id} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          checked={formData.exam_ids.includes(exam.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({ 
+                                ...formData, 
+                                exam_ids: [...formData.exam_ids, exam.id] 
+                              });
+                            } else {
+                              setFormData({ 
+                                ...formData, 
+                                exam_ids: formData.exam_ids.filter(id => id !== exam.id) 
+                              });
+                            }
+                          }}
+                          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        />
+                        <span className="text-sm text-gray-900">
+                          {exam.name} ({exam.exam_code}) - {exam.category}
+                        </span>
+                      </label>
+                    ))}
+                    {exams.length === 0 && (
+                      <p className="text-sm text-gray-500">No exams available</p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Question Text *
+                  </label>
+                  <textarea
+                    value={formData.question_text}
+                    onChange={(e) => setFormData({ ...formData, question_text: e.target.value })}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white text-sm sm:text-base"
+                    rows={3}
+                    placeholder="Enter the question text"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Option A *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.option_a}
+                      onChange={(e) => setFormData({ ...formData, option_a: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white text-sm sm:text-base"
+                      placeholder="Enter option A"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Option B *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.option_b}
+                      onChange={(e) => setFormData({ ...formData, option_b: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white text-sm sm:text-base"
+                      placeholder="Enter option B"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Option C *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.option_c}
+                      onChange={(e) => setFormData({ ...formData, option_c: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white text-sm sm:text-base"
+                      placeholder="Enter option C"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Option D *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.option_d}
+                      onChange={(e) => setFormData({ ...formData, option_d: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white text-sm sm:text-base"
+                      placeholder="Enter option D"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Correct Answer *
+                  </label>
+                  <select
+                    value={formData.correct_option}
+                    onChange={(e) => setFormData({ ...formData, correct_option: e.target.value as 'A' | 'B' | 'C' | 'D' })}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white text-sm sm:text-base"
+                    required
+                  >
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                    <option value="D">D</option>
+                  </select>
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm sm:text-base"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm sm:text-base"
+                  >
+                    {editingQuestion ? 'Update Question' : 'Add Question'}
+                  </button>
+                </div>
+              </form>
             </div>
-          )}
-        </>
+          </div>
+        </div>
       )}
     </div>
   );

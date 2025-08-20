@@ -83,14 +83,27 @@ export async function POST(request: NextRequest) {
     const questions = await prisma.question.findMany({
       where: {
         id: { in: questionIds },
-        question_categories: {
+        exam_questions: {
           some: {
-            category: student.category
+            exam: {
+              category: student.category
+            }
           }
         }
       },
       include: {
-        question_categories: true
+        exam_questions: {
+          include: {
+            exam: {
+              select: {
+                id: true,
+                name: true,
+                exam_code: true,
+                category: true
+              }
+            }
+          }
+        }
       }
     });
 

@@ -20,12 +20,14 @@ export async function GET(
       );
     }
 
-    // Get questions for the specific category
+    // Get questions for the specific category through exam relationship
     const questions = await prisma.question.findMany({
       where: {
-        question_categories: {
+        exam_questions: {
           some: {
-            category: category as Category
+            exam: {
+              category: category as Category
+            }
           }
         }
       },
@@ -37,9 +39,20 @@ export async function GET(
         option_c: true,
         option_d: true,
         // Don't include correct_option for security
-        question_categories: {
-          select: {
-            category: true
+        exam_questions: {
+          include: {
+            exam: {
+              select: {
+                category: true,
+                name: true,
+                exam_code: true
+              }
+            }
+          },
+          where: {
+            exam: {
+              category: category as Category
+            }
           }
         }
       },
@@ -69,7 +82,8 @@ export async function GET(
         { id: "C", text: question.option_c },
         { id: "D", text: question.option_d }
       ],
-      categories: question.question_categories.map(qc => qc.category)
+      category: question.exam_questions[0]?.exam?.category,
+      exam: question.exam_questions[0]?.exam
     }));
 
     return NextResponse.json({

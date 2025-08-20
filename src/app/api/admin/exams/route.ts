@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/config/prisma";
 import { Category } from "@prisma/client";
-import { generateExamCode } from "@/utils/examCodeGenerator";
+import { generateExamCode, validateExamCode } from "@/utils/examCodeGenerator";
 
 // GET all exams
 export async function GET(request: NextRequest) {
@@ -23,7 +23,8 @@ export async function GET(request: NextRequest) {
         include: {
           _count: {
             select: {
-              scores: true
+              scores: true,
+              exam_questions: true
             }
           }
         },
@@ -62,6 +63,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
+      name,
+      exam_code,
       category,
       duration,
       start_time,
@@ -69,11 +72,11 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Basic validation
-    if (!category || !duration) {
+    if (!name || !category || !duration) {
       return NextResponse.json(
         { 
           success: false, 
-          message: "Category and duration are required" 
+          message: "Name, category and duration are required" 
         },
         { status: 400 }
       );
@@ -101,6 +104,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Handle exam code
+    let finalExamCode: string;
+    
+    if (exam_code && exam_code.trim()) {
+      // Manual exam code provided
+      const trimmedCode = exam_code.trim().toUpperCase();
+      
+      // Validate format
+      if (!validateExamCode(trimmedCode)) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            message: "Invalid exam code format. Use GNG-YYYY-XXX for Gengo or BNK-YYYY-XXX for Bunka" 
+          },
+          { status: 400 }
+        );
+      }
+      
+      // Check if exam code already exists
+      const existingExam = await prisma.exam.findUnique({
+        where: { exam_code: trimmedCode }
+      });
+      
+      if (existingExam) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            message: "Exam code already exists. Please choose a different code." 
+          },
+          { status: 400 }
+        );
+      }
+      
+      finalExamCode = trimmedCode;
+    } else {
+      // Auto-generate exam code
+      finalExamCode = await generateExamCode(category);
+    }
+
     // Validate times if provided
     if (start_time && end_time) {
       const startDate = new Date(start_time);
@@ -117,11 +159,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Generate unique exam code
-    const examCode = await generateExamCode(category);
-
     const examData: any = {
-      exam_code: examCode,
+      name,
+      exam_code: finalExamCode,
       category,
       duration
     };
@@ -139,7 +179,8 @@ export async function POST(request: NextRequest) {
       include: {
         _count: {
           select: {
-            scores: true
+            scores: true,
+            exam_questions: true
           }
         }
       }

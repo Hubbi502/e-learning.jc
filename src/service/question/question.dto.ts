@@ -7,9 +7,8 @@ export const OptionSchema = z.nativeEnum(Option);
 
 // Create Question Validation Schema
 export const CreateQuestionSchema = z.object({
-  categories: z.array(CategorySchema)
-    .min(1, "At least one category must be selected")
-    .max(2, "Maximum of 2 categories can be selected"),
+  exam_id: z.string().uuid("Invalid exam ID").optional(), // Keep for backward compatibility but won't be used in create
+  exam_ids: z.array(z.string().uuid("Invalid exam ID")).optional(), // New field for multiple exams
   question_text: z.string()
     .min(10, "Question text must be at least 10 characters long")
     .max(1000, "Question text must not exceed 1000 characters")
@@ -35,10 +34,8 @@ export const CreateQuestionSchema = z.object({
 
 // Update Question Validation Schema (all fields optional)
 export const UpdateQuestionSchema = z.object({
-  categories: z.array(CategorySchema)
-    .min(1, "At least one category must be selected")
-    .max(2, "Maximum of 2 categories can be selected")
-    .optional(),
+  exam_id: z.string().uuid("Invalid exam ID").optional(), // Keep for backward compatibility
+  exam_ids: z.array(z.string().uuid("Invalid exam ID")).optional(), // New field for multiple exams
   question_text: z.string()
     .min(10, "Question text must be at least 10 characters long")
     .max(1000, "Question text must not exceed 1000 characters")
@@ -74,7 +71,7 @@ export const UpdateQuestionSchema = z.object({
 
 // Question Filter Validation Schema
 export const QuestionFilterSchema = z.object({
-  categories: z.array(CategorySchema).optional(),
+  exam_id: z.string().uuid("Invalid exam ID").optional(),
   question_text: z.string()
     .min(1, "Search text cannot be empty")
     .max(255, "Search text must not exceed 255 characters")
@@ -117,7 +114,6 @@ export const GetAllQuestionsOptionsSchema = z.object({
     created_at: z.enum(['asc', 'desc']).optional(),
     updated_at: z.enum(['asc', 'desc']).optional(),
     question_text: z.enum(['asc', 'desc']).optional(),
-    category: z.enum(['asc', 'desc']).optional(),
   }).optional(),
   includeAnswers: z.boolean().default(false).optional(),
 }).optional();
@@ -140,7 +136,7 @@ export const GetByCategoryOptionsSchema = z.object({
 
 // Search Questions Options Schema
 export const SearchQuestionsOptionsSchema = z.object({
-  category: CategorySchema.optional(),
+  exam_id: z.string().uuid("Invalid exam ID").optional(),
   skip: z.number()
     .int("Skip must be an integer")
     .min(0, "Skip must be non-negative")
@@ -156,7 +152,7 @@ export const SearchQuestionsOptionsSchema = z.object({
 
 // Random Questions Schema
 export const GetRandomQuestionsSchema = z.object({
-  categories: z.array(CategorySchema).optional(),
+  exam_id: z.string().uuid("Invalid exam ID").optional(),
   count: z.number()
     .int("Count must be an integer")
     .min(1, "Count must be at least 1")
@@ -188,8 +184,8 @@ export type GetByCategoryOptions = z.infer<typeof GetByCategoryOptionsSchema>;
 export type SearchQuestionsOptions = z.infer<typeof SearchQuestionsOptionsSchema>;
 export type GetRandomQuestionsParams = z.infer<typeof GetRandomQuestionsSchema>;
 
-// Question with categories interface
-export interface QuestionWithCategories {
+// Question with exam_questions interface (updated to match new schema)
+export interface QuestionWithExamQuestions {
   id: string;
   question_text: string;
   option_a: string;
@@ -199,11 +195,13 @@ export interface QuestionWithCategories {
   correct_option: Option;
   created_at: Date;
   updated_at: Date;
-  categories: Category[];
-  question_categories: Array<{
-    id: string;
-    category: Category;
-    created_at: Date;
+  exam_questions?: Array<{
+    exam: {
+      id: string;
+      name: string;
+      exam_code: string;
+      category: Category;
+    };
   }>;
 }
 
@@ -231,10 +229,7 @@ export interface QuestionListResponse {
 
 export interface QuestionStatistics {
   total: number;
-  byCategory: {
-    Gengo: number;
-    Bunka: number;
-  };
+  byExam: Record<string, number>;
 }
 
 // Validation helper functions

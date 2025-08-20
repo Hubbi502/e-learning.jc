@@ -12,11 +12,16 @@ export async function GET(
     const question = await prisma.question.findUnique({
       where: { id },
       include: {
-        question_categories: {
-          select: {
-            id: true,
-            category: true,
-            created_at: true
+        exam_questions: {
+          include: {
+            exam: {
+              select: {
+                id: true,
+                name: true,
+                exam_code: true,
+                category: true
+              }
+            }
           }
         }
       }
@@ -32,10 +37,11 @@ export async function GET(
       );
     }
 
-    // Transform question to include categories array
+    // Transform question to include exams information
     const transformedQuestion = {
       ...question,
-      categories: question.question_categories.map(qc => qc.category)
+      exams: question.exam_questions.map(eq => eq.exam),
+      category: question.exam_questions[0]?.exam?.category || null
     };
 
     return NextResponse.json({
@@ -63,15 +69,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const {
-      categories,
-      question_text,
-      option_a,
-      option_b,
-      option_c,
-      option_d,
-      correct_option
-    } = body;
+    const { exam_ids, question_text, option_a, option_b, option_c, option_d, correct_option } = body;
 
     // Check if question exists
     const existingQuestion = await prisma.question.findUnique({
@@ -80,106 +78,69 @@ export async function PUT(
 
     if (!existingQuestion) {
       return NextResponse.json(
-        { 
-          success: false, 
-          message: "Question not found" 
-        },
+        { success: false, message: "Question not found" },
         { status: 404 }
       );
     }
 
-    // Basic validation
-    if (!categories || !Array.isArray(categories) || categories.length === 0 || !question_text || !option_a || !option_b || !option_c || !option_d || !correct_option) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          message: "All fields are required. Categories must be an array with at least one category." 
-        },
-        { status: 400 }
-      );
-    }
-
-    // Validate categories
-    const validCategories = categories.every(cat => Object.values(Category).includes(cat));
-    if (!validCategories) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          message: "Invalid category provided" 
-        },
-        { status: 400 }
-      );
-    }
-
-    // Check for duplicate categories
-    if (new Set(categories).size !== categories.length) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          message: "Duplicate categories are not allowed" 
-        },
-        { status: 400 }
-      );
-    }
-
-    // Validate correct option
-    if (!Object.values(Option).includes(correct_option)) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          message: "Invalid correct option" 
-        },
-        { status: 400 }
-      );
-    }
-
-    // Update question with categories in a transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // Update the question
+    // Update the question using transaction
+    const question = await prisma.$transaction(async (tx) => {
+      // Update question basic data
       const updatedQuestion = await tx.question.update({
         where: { id },
         data: {
-          question_text: question_text.trim(),
-          option_a: option_a.trim(),
-          option_b: option_b.trim(),
-          option_c: option_c.trim(),
-          option_d: option_d.trim(),
+          question_text: question_text?.trim(),
+          option_a: option_a?.trim(),
+          option_b: option_b?.trim(),
+          option_c: option_c?.trim(),
+          option_d: option_d?.trim(),
           correct_option
         }
       });
 
-      // Delete existing question categories
-      await tx.questionCategory.deleteMany({
-        where: { question_id: id }
-      });
+      // Update exam relationships if exam_ids provided
+      if (exam_ids !== undefined) {
+        // Delete existing exam relationships
+        await tx.examQuestion.deleteMany({
+          where: { question_id: id }
+        });
 
-      // Create new question categories
-      await tx.questionCategory.createMany({
-        data: categories.map(category => ({
-          question_id: id,
-          category
-        }))
-      });
+        // Create new exam relationships
+        if (exam_ids && exam_ids.length > 0) {
+          await tx.examQuestion.createMany({
+            data: exam_ids.map((exam_id: string) => ({
+              exam_id,
+              question_id: id
+            }))
+          });
+        }
+      }
 
-      // Return question with categories
+      // Return question with relationships
       return await tx.question.findUnique({
         where: { id },
         include: {
-          question_categories: {
-            select: {
-              id: true,
-              category: true,
-              created_at: true
+          exam_questions: {
+            include: {
+              exam: {
+                select: {
+                  id: true,
+                  name: true,
+                  exam_code: true,
+                  category: true
+                }
+              }
             }
           }
         }
       });
     });
 
-    // Transform result to include categories array
+    // Transform result to include exams information
     const transformedQuestion = {
-      ...result,
-      categories: result!.question_categories.map(qc => qc.category)
+      ...question,
+      exams: question?.exam_questions.map(eq => eq.exam) || [],
+      category: question?.exam_questions[0]?.exam?.category || null
     };
 
     return NextResponse.json({
@@ -191,10 +152,7 @@ export async function PUT(
   } catch (error) {
     console.error("Update question error:", error);
     return NextResponse.json(
-      { 
-        success: false, 
-        message: "Failed to update question" 
-      },
+      { success: false, message: "Failed to update question" },
       { status: 500 }
     );
   }
@@ -207,6 +165,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+
     // Check if question exists
     const existingQuestion = await prisma.question.findUnique({
       where: { id }
@@ -214,15 +173,12 @@ export async function DELETE(
 
     if (!existingQuestion) {
       return NextResponse.json(
-        { 
-          success: false, 
-          message: "Question not found" 
-        },
+        { success: false, message: "Question not found" },
         { status: 404 }
       );
     }
 
-    // Delete question (this will cascade delete related answers)
+    // Delete the question
     await prisma.question.delete({
       where: { id }
     });
@@ -235,10 +191,7 @@ export async function DELETE(
   } catch (error) {
     console.error("Delete question error:", error);
     return NextResponse.json(
-      { 
-        success: false, 
-        message: "Failed to delete question" 
-      },
+      { success: false, message: "Failed to delete question" },
       { status: 500 }
     );
   }

@@ -6,6 +6,7 @@ import { Category, Option } from "@prisma/client";
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const exam_id = searchParams.get('exam_id');
     const category = searchParams.get('category') as Category | null;
     const search = searchParams.get('search');
     const page = parseInt(searchParams.get('page') || '1');
@@ -13,10 +14,22 @@ export async function GET(request: NextRequest) {
 
     const where: any = {};
     
-    if (category) {
-      where.question_categories = {
+    // Filter by exam_id if provided
+    if (exam_id) {
+      where.exam_questions = {
         some: {
-          category: category
+          exam_id: exam_id
+        }
+      };
+    }
+    
+    // Filter by category through exam relationship
+    if (category) {
+      where.exam_questions = {
+        some: {
+          exam: {
+            category: category
+          }
         }
       };
     }
@@ -35,11 +48,16 @@ export async function GET(request: NextRequest) {
       prisma.question.findMany({
         where,
         include: {
-          question_categories: {
-            select: {
-              id: true,
-              category: true,
-              created_at: true
+          exam_questions: {
+            include: {
+              exam: {
+                select: {
+                  id: true,
+                  name: true,
+                  exam_code: true,
+                  category: true
+                }
+              }
             }
           }
         },
@@ -50,10 +68,12 @@ export async function GET(request: NextRequest) {
       prisma.question.count({ where })
     ]);
 
-    // Transform questions to include categories array
+    // Transform questions to include exams information
     const transformedQuestions = questions.map(question => ({
       ...question,
-      categories: question.question_categories.map(qc => qc.category)
+      exams: question.exam_questions.map(eq => eq.exam),
+      // Keep backward compatibility by adding category from first exam
+      category: question.exam_questions[0]?.exam?.category || null
     }));
 
     return NextResponse.json({
@@ -70,10 +90,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Get questions error:", error);
     return NextResponse.json(
-      { 
-        success: false, 
-        message: "Failed to fetch questions" 
-      },
+      { success: false, message: "Failed to fetch questions" },
       { status: 500 }
     );
   }
@@ -83,102 +100,52 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const {
-      categories,
-      question_text,
-      option_a,
-      option_b,
-      option_c,
-      option_d,
-      correct_option
-    } = body;
+    const { exam_ids, question_text, option_a, option_b, option_c, option_d, correct_option } = body;
 
-    // Basic validation
-    if (!categories || !Array.isArray(categories) || categories.length === 0 || !question_text || !option_a || !option_b || !option_c || !option_d || !correct_option) {
+    // Validate required fields
+    if (!question_text || !option_a || !option_b || !option_c || !option_d || !correct_option) {
       return NextResponse.json(
-        { 
-          success: false, 
-          message: "All fields are required. Categories must be an array with at least one category." 
-        },
+        { success: false, message: "All fields are required" },
         { status: 400 }
       );
     }
 
-    // Validate categories
-    const validCategories = categories.every(cat => Object.values(Category).includes(cat));
-    if (!validCategories) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          message: "Invalid category provided" 
-        },
-        { status: 400 }
-      );
-    }
-
-    // Check for duplicate categories
-    if (new Set(categories).size !== categories.length) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          message: "Duplicate categories are not allowed" 
-        },
-        { status: 400 }
-      );
-    }
-
-    // Validate correct option
-    if (!Object.values(Option).includes(correct_option)) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          message: "Invalid correct option" 
-        },
-        { status: 400 }
-      );
-    }
-
-    // Create question with categories in a transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // Create the question
-      const question = await tx.question.create({
-        data: {
-          question_text: question_text.trim(),
-          option_a: option_a.trim(),
-          option_b: option_b.trim(),
-          option_c: option_c.trim(),
-          option_d: option_d.trim(),
-          correct_option
-        }
-      });
-
-      // Create question categories
-      await tx.questionCategory.createMany({
-        data: categories.map(category => ({
-          question_id: question.id,
-          category
-        }))
-      });
-
-      // Return question with categories
-      return await tx.question.findUnique({
-        where: { id: question.id },
-        include: {
-          question_categories: {
-            select: {
-              id: true,
-              category: true,
-              created_at: true
+    // Create the question
+    const question = await prisma.question.create({
+      data: {
+        question_text: question_text.trim(),
+        option_a: option_a.trim(),
+        option_b: option_b.trim(),
+        option_c: option_c.trim(),
+        option_d: option_d.trim(),
+        correct_option,
+        exam_questions: exam_ids && exam_ids.length > 0 ? {
+          create: exam_ids.map((exam_id: string) => ({
+            exam_id
+          }))
+        } : undefined
+      },
+      include: {
+        exam_questions: {
+          include: {
+            exam: {
+              select: {
+                id: true,
+                name: true,
+                exam_code: true,
+                category: true
+              }
             }
           }
         }
-      });
+      }
     });
 
-    // Transform result to include categories array
+    // Transform result to include exams information
     const transformedQuestion = {
-      ...result,
-      categories: result!.question_categories.map(qc => qc.category)
+      ...question,
+      exams: question.exam_questions.map(eq => eq.exam),
+      category: question.exam_questions[0]?.exam?.category || null
     };
 
     return NextResponse.json({
@@ -190,10 +157,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Create question error:", error);
     return NextResponse.json(
-      { 
-        success: false, 
-        message: "Failed to create question" 
-      },
+      { success: false, message: "Failed to create question" },
       { status: 500 }
     );
   }

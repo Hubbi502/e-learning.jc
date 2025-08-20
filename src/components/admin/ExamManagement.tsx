@@ -5,6 +5,7 @@ import { Plus, Edit, Trash2, Search, Calendar, Play, Pause, Users, Grid, List, C
 
 interface Exam {
   id: string;
+  name: string;
   exam_code: string;
   category: 'Gengo' | 'Bunka';
   duration: number;
@@ -19,6 +20,8 @@ interface Exam {
 }
 
 interface ExamFormData {
+  name: string;
+  exam_code: string;
   category: 'Gengo' | 'Bunka';
   duration: number;
   start_time: string;
@@ -35,6 +38,8 @@ export function ExamManagement() {
   const [sortField, setSortField] = useState<'category' | 'start_time' | 'status' | 'participants'>('start_time');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [formData, setFormData] = useState<ExamFormData>({
+    name: '',
+    exam_code: '',
     category: 'Gengo',
     duration: 60,
     start_time: '',
@@ -93,6 +98,8 @@ export function ExamManagement() {
   const handleEdit = (exam: Exam) => {
     setEditingExam(exam);
     setFormData({
+      name: exam.name,
+      exam_code: exam.exam_code,
       category: exam.category,
       duration: exam.duration,
       start_time: exam.start_time ? exam.start_time.slice(0, 16) : '',
@@ -111,8 +118,6 @@ export function ExamManagement() {
 
       if (response.ok) {
         await fetchExams();
-      } else {
-        alert('Failed to delete exam');
       }
     } catch (error) {
       console.error('Error deleting exam:', error);
@@ -139,6 +144,8 @@ export function ExamManagement() {
 
   const resetForm = () => {
     setFormData({
+      name: '',
+      exam_code: '',
       category: 'Gengo',
       duration: 60,
       start_time: '',
@@ -172,7 +179,8 @@ export function ExamManagement() {
   };
 
   const filteredExams = exams.filter(exam => {
-    return exam.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    return exam.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           exam.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
            exam.exam_code.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
@@ -306,6 +314,36 @@ export function ExamManagement() {
                 </div>
 
                 <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Exam Name
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white text-sm sm:text-base"
+                      placeholder="Enter exam name"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Exam Code
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.exam_code}
+                      onChange={(e) => setFormData({ ...formData, exam_code: e.target.value.toUpperCase() })}
+                      className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white text-sm sm:text-base"
+                      placeholder="e.g., GNG-2025-001 (leave empty for auto-generation)"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Format: GNG-YYYY-XXX for Gengo or BNK-YYYY-XXX for Bunka. Leave empty to auto-generate.
+                    </p>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Category
@@ -481,13 +519,13 @@ export function ExamManagement() {
                         <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                           <div>
                             <div className="text-sm sm:text-base font-medium text-gray-900">
-                              {exam.category} Exam
+                              {exam.name}
                             </div>
                             <div className="text-xs sm:text-sm font-medium text-indigo-600">
                               {exam.exam_code}
                             </div>
                             <div className="text-xs sm:text-sm text-gray-500">
-                              Duration: {exam.duration} minutes
+                              {exam.category} • Duration: {exam.duration} minutes
                             </div>
                             {/* Mobile: Show additional info */}
                             <div className="mt-1 sm:hidden space-y-1">
@@ -654,13 +692,13 @@ export function ExamManagement() {
                 <div className="flex justify-between items-start mb-4">
                   <div className="min-w-0 flex-1">
                     <h3 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">
-                      {exam.category} Exam
+                      {exam.name}
                     </h3>
                     <p className="text-sm font-medium text-indigo-600 mt-1">
                       {exam.exam_code}
                     </p>
                     <p className="text-sm text-gray-500 mt-1">
-                      Duration: {exam.duration} minutes
+                      {exam.category} • Duration: {exam.duration} minutes
                     </p>
                   </div>
                   <span className={`px-2.5 py-1 text-xs font-medium rounded-full flex-shrink-0 ml-2 ${getStatusColor(status)}`}>

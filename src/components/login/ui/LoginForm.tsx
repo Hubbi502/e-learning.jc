@@ -154,45 +154,6 @@ export default function LoginForm({
           </button>
         </div>
 
-        {/* Remember Me & Forgot Password */}
-        <div className="flex items-center justify-between">
-          <label className="flex items-center space-x-2 cursor-pointer">
-            <input
-              type="checkbox"
-              name="rememberMe"
-              checked={formData.rememberMe}
-              onChange={handleInputChange}
-              className={`w-4 h-4 rounded border-2 transition-all duration-200 ${
-                loginType === 'admin'
-                  ? isDark
-                    ? 'border-indigo-500 text-indigo-600 focus:ring-indigo-500'
-                    : 'border-orange-400 text-orange-600 focus:ring-orange-500'
-                  : isDark
-                    ? 'border-purple-500 text-purple-600 focus:ring-purple-500'
-                    : 'border-red-400 text-red-600 focus:ring-red-500'
-              }`}
-            />
-            <span className={`text-sm ${
-              isDark ? 'text-gray-300' : 'text-gray-600'
-            }`}>
-              Remember me
-            </span>
-          </label>
-          <button
-            type="button"
-            className={`text-sm font-medium transition-colors ${
-              loginType === 'admin'
-                ? isDark
-                  ? 'text-indigo-300 hover:text-indigo-200'
-                  : 'text-orange-600 hover:text-orange-700'
-                : isDark
-                  ? 'text-purple-300 hover:text-purple-200'
-                  : 'text-red-600 hover:text-red-700'
-            }`}
-          >
-            Forgot password?
-          </button>
-        </div>
 
         {/* Login Button */}
         <button
@@ -201,7 +162,7 @@ export default function LoginForm({
             return await handleSubmit(e as any);
           }}
           disabled={isLoading}
-          className={`w-full py-4 px-6 rounded-xl font-medium text-white transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 disabled:opacity-50 disabled:cursor-not-allowed ${
+          className={`w-full mt-8 py-4 px-6 rounded-xl font-medium text-white transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 disabled:opacity-50 disabled:cursor-not-allowed ${
             loginType === 'admin'
               ? isDark
                 ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 focus:ring-indigo-500/50'
