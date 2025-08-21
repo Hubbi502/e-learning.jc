@@ -56,7 +56,7 @@ export function AdminDashboard() {
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-slate-900 bg-opacity-60 md:hidden backdrop-blur-sm"
+          className="fixed inset-0 z-40 bg-slate-900/60 md:hidden backdrop-blur-sm"
           onClick={() => setSidebarOpen(false)}
         />
       )}

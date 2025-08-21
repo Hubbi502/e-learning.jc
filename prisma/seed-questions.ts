@@ -248,6 +248,129 @@ const particleQuestions = [
   }
 ];
 
+const bunkaQuestions = [
+  {
+    question_text: "Kimono adalah pakaian tradisional Jepang. Kimono biasanya dikenakan pada…",
+    option_a: "Acara resmi dan festival",
+    option_b: "Sekolah setiap hari",
+    option_c: "Saat berolahraga",
+    option_d: "Saat bekerja di kantor",
+    correct_option: "A" as Option
+  },
+  {
+    question_text: "Karuta adalah permainan tradisional Jepang menggunakan…",
+    option_a: "Kertas origami",
+    option_b: "Kartu",
+    option_c: "Batu kecil",
+    option_d: "Boneka",
+    correct_option: "B" as Option
+  },
+  {
+    question_text: "Dalam permainan Karuta, pemain harus…",
+    option_a: "Menyusun kartu sesuai warna",
+    option_b: "Menangkap kartu yang sesuai bacaan",
+    option_c: "Membalik kartu satu per satu",
+    option_d: "Menggambar kartu sendiri",
+    correct_option: "B" as Option
+  },
+  {
+    question_text: "Kue Jepang berbentuk bulat seperti bola kecil, terbuat dari tepung beras adalah...",
+    option_a: "Dango",
+    option_b: "Taiyaki",
+    option_c: "Yakitori",
+    option_d: "Donburi",
+    correct_option: "A" as Option
+  },
+  {
+    question_text: "Apa arti kata \"Bunka\" (文化) dalam bahasa Jepang?",
+    option_a: "Pendidikan",
+    option_b: "Kebudayaan",
+    option_c: "Teknologi",
+    option_d: "Tradisi",
+    correct_option: "B" as Option
+  },
+  {
+    question_text: "Festival musim panas di Jepang yang identik dengan kembang api disebut…",
+    option_a: "Hanami",
+    option_b: "Obon",
+    option_c: "Hanabi Taikai",
+    option_d: "Tanabata",
+    correct_option: "C" as Option
+  },
+  {
+    question_text: "Pakaian tradisional Jepang yang sering dipakai pada acara resmi adalah…",
+    option_a: "Yukata",
+    option_b: "Kimono",
+    option_c: "Furisode",
+    option_d: "Hakama",
+    correct_option: "B" as Option
+  },
+  {
+    question_text: "Bahasa tulisan Jepang yang menggunakan karakter Tiongkok disebut…",
+    option_a: "Hiragana",
+    option_b: "Katakana",
+    option_c: "Kanji",
+    option_d: "Romaji",
+    correct_option: "C" as Option
+  },
+  {
+    question_text: "Festival melihat bunga sakura mekar disebut…",
+    option_a: "Hanami",
+    option_b: "Hanabi",
+    option_c: "Tanabata",
+    option_d: "Sumo",
+    correct_option: "A" as Option
+  },
+  {
+    question_text: "Dalam budaya Jepang terdapat berbagai cara membungkuk. Cara membungkuk yang digunakan untuk menyampaikan permintaan maaf disebut…",
+    option_a: "Samurai",
+    option_b: "Kimono",
+    option_c: "Saikeirei",
+    option_d: "Sakura",
+    correct_option: "C" as Option
+  },
+  {
+    question_text: "Minuman tradisional Jepang yang terkenal adalah…",
+    option_a: "Teh Hijau",
+    option_b: "Susu Soda",
+    option_c: "Kopi Instan",
+    option_d: "Jus Jeruk",
+    correct_option: "A" as Option
+  },
+  {
+    question_text: "Shodou adalah seni tradisional Jepang dalam…",
+    option_a: "Menulis kaligrafi dengan kuas",
+    option_b: "Menggambar dengan tinta",
+    option_c: "Melipat kain",
+    option_d: "Menyusun mozaik",
+    correct_option: "A" as Option
+  },
+  {
+    question_text: "Kue Jepang berbentuk ikan dan biasanya berisi pasta kacang merah disebut…",
+    option_a: "Taiyaki",
+    option_b: "Sushi",
+    option_c: "Onigiri",
+    option_d: "Mochi",
+    correct_option: "A" as Option
+  },
+  {
+    question_text: "Sushi adalah makanan Jepang yang berbahan dasar…",
+    option_a: "Roti dan selai",
+    option_b: "Nasi dan lauk",
+    option_c: "Kue beras",
+    option_d: "Sup miso",
+    correct_option: "B" as Option
+  },
+  {
+    question_text: "Seni melipat kertas tradisional Jepang (折り紙) untuk membentuk objek hewan, bunga, atau bentuk geometris disebut..",
+    option_a: "Sadou",
+    option_b: "Matsuri",
+    option_c: "Monogatari",
+    option_d: "Origami",
+    correct_option: "D" as Option
+  }
+];
+
 async function main() {
   console.log('🌱 Start seeding...');
 
@@ -321,7 +444,28 @@ async function main() {
     console.log(`✅ Created particle question: ${question.question_text.substring(0, 50)}...`);
   }
 
-  console.log(`🌱 Seeding finished. Created ${questions.length} questions for both exams and ${particleQuestions.length} particle questions for Gengo exam only.`);
+  // Create Bunka questions only for Bunka exam (BNK-2025-001)
+  for (const questionData of bunkaQuestions) {
+    const question = await prisma.question.create({
+      data: {
+        question_text: questionData.question_text,
+        option_a: questionData.option_a,
+        option_b: questionData.option_b,
+        option_c: questionData.option_c,
+        option_d: questionData.option_d,
+        correct_option: questionData.correct_option,
+        exam_questions: {
+          create: [
+            { exam_id: bunkaExam.id }
+          ]
+        }
+      }
+    });
+
+    console.log(`✅ Created Bunka question: ${question.question_text.substring(0, 50)}...`);
+  }
+
+  console.log(`🌱 Seeding finished. Created ${questions.length} questions for both exams, ${particleQuestions.length} particle questions for Gengo exam only, and ${bunkaQuestions.length} Bunka questions for Bunka exam only.`);
 }
 
 main()
