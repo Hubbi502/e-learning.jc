@@ -704,8 +704,8 @@ export function QuestionManagement() {
             </button>
           </div>
           
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-700">Show:</span>
+          <div className="flex items-center space-x-2 text-gray-700">
+            <span className="text-sm ">Show:</span>
             <select
               value={itemsPerPage}
               onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
