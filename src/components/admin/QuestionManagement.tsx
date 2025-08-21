@@ -271,7 +271,7 @@ export function QuestionManagement() {
   };
 
   return (
-    <div className={getCardClasses('default')} style={{ padding: '1.5rem' }}>
+<>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div className="flex items-center space-x-4">
           <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl p-3 shadow-lg">
@@ -722,14 +722,22 @@ export function QuestionManagement() {
 
       {/* Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {editingQuestion ? 'Edit Question' : 'Add New Question'}
-                </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Overlay */}
+          <div 
+            className="fixed inset-0 bg-black/50 transition-opacity" 
+            onClick={resetForm}
+          ></div>
+          
+          {/* Modal Content */}
+          <div className="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6">
+              <div className="flex justify-between items-center mb-4 sm:mb-6">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                  {editingQuestion ? 'Edit Question' : 'Create New Question'}
+                </h2>
                 <button
+                  type="button"
                   onClick={resetForm}
                   className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 transition-colors"
                 >
@@ -737,7 +745,7 @@ export function QuestionManagement() {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Exams *
@@ -764,7 +772,7 @@ export function QuestionManagement() {
                           className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                         />
                         <span className="text-sm text-gray-900">
-                          {exam.name} ({exam.exam_code}) 
+                          {exam.name} ({exam.exam_code})
                         </span>
                       </label>
                     ))}
@@ -859,27 +867,27 @@ export function QuestionManagement() {
                     <option value="D">D</option>
                   </select>
                 </div>
+              </div>
 
-                <div className="flex justify-end space-x-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm sm:text-base"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm sm:text-base"
-                  >
-                    {editingQuestion ? 'Update Question' : 'Add Question'}
-                  </button>
-                </div>
-              </form>
-            </div>
+              <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="w-full sm:w-auto px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-200 text-sm sm:text-base"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200 text-sm sm:text-base"
+                >
+                  {editingQuestion ? 'Update' : 'Create'} Question
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
-    </div>
+</>
   );
 }
