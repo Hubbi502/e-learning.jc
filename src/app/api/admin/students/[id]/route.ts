@@ -31,7 +31,11 @@ export async function GET(
               select: {
                 id: true,
                 question_text: true,
-                correct_option: true
+                correct_option: true,
+                option_a: true,
+                option_b: true,
+                option_c: true,
+                option_d: true
               }
             }
           }

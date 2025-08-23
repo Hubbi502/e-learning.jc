@@ -101,6 +101,102 @@
 }
 
 ::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: var(--radius);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--ring));
+}
+
+/* Enhanced mobile responsiveness */
+@media (max-width: 640px) {
+  .mobile-optimized {
+    padding: 0.75rem;
+  }
+  
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .mobile-text {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .tablet-optimized {
+    padding: 1rem;
+  }
+}
+
+/* Enhanced animations for touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .touch-device-animation {
+    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  }
+  
+  .touch-device-animation:active {
+    transform: scale(0.98);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Improved focus states for accessibility */
+.focus-enhanced:focus {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Card hover effects for different devices */
+.card-interactive {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .card-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+}
+
+/* Scrollbar utilities */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thumb-gray-300::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+}
+
+.scrollbar-track-gray-100::-webkit-scrollbar-track {
+  background-color: #f3f4f6;
+}
+
+/* Enhanced gradient utilities */
+.gradient-card {
+  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.gradient-card-selected {
+  background: linear-gradient(145deg, #dbeafe 0%, #bfdbfe 100%);
+}
+
+/* Mobile-first responsive utilities */
+.mobile-stack {
+  flex-direction: column;
+}
+
+@media (min-width: 640px) {
+  .mobile-stack {
+    flex-direction: row;
+  }
+}
+
+::-webkit-scrollbar-thumb {
   background: linear-gradient(135deg, hsl(var(--primary)), hsl(220, 60%, 30%));
   border-radius: var(--radius);
 }

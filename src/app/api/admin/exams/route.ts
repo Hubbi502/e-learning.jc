@@ -143,8 +143,8 @@ export async function POST(request: NextRequest) {
       finalExamCode = await generateExamCode(category);
     }
 
-    // Validate times if provided
-    if (start_time && end_time) {
+    // Validate times if both are provided
+    if (start_time && start_time !== 'null' && end_time && end_time !== 'null') {
       const startDate = new Date(start_time);
       const endDate = new Date(end_time);
       
@@ -166,11 +166,12 @@ export async function POST(request: NextRequest) {
       duration
     };
 
-    if (start_time) {
+    // Only add datetime fields if they are provided and not null
+    if (start_time && start_time !== 'null') {
       examData.start_time = new Date(start_time);
     }
 
-    if (end_time) {
+    if (end_time && end_time !== 'null') {
       examData.end_time = new Date(end_time);
     }
 

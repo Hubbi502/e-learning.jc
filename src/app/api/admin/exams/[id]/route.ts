@@ -157,8 +157,8 @@ export async function PUT(
       }
     }
 
-    // Validate times if provided
-    if (start_time && end_time) {
+    // Validate times if both are provided
+    if (start_time && start_time !== 'null' && end_time && end_time !== 'null') {
       const startDate = new Date(start_time);
       const endDate = new Date(end_time);
       
@@ -180,12 +180,17 @@ export async function PUT(
       duration
     };
 
-    if (start_time) {
+    // Only add datetime fields if they are provided and not null
+    if (start_time && start_time !== 'null') {
       updateData.start_time = new Date(start_time);
+    } else if (start_time === null) {
+      updateData.start_time = null;
     }
 
-    if (end_time) {
+    if (end_time && end_time !== 'null') {
       updateData.end_time = new Date(end_time);
+    } else if (end_time === null) {
+      updateData.end_time = null;
     }
 
     const exam = await prisma.exam.update({
