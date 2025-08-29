@@ -172,6 +172,19 @@ export function QuestionForm({
                 <option value="D">D</option>
               </select>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Explanation (Optional)
+              </label>
+              <textarea
+                value={formData.explanation || ''}
+                onChange={(e) => onFormDataChange({ ...formData, explanation: e.target.value })}
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 bg-white text-sm sm:text-base"
+                rows={3}
+                placeholder="Enter explanation for the correct answer (will be shown in review)"
+              />
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-3 mt-6">

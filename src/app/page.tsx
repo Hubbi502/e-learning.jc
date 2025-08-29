@@ -12,7 +12,7 @@ export default function JapaneseLMSLanding() {
 
   const toggleTheme = () => {
     setIsDark(!isDark);
-  };
+  };/*  */
 
   return (
     <LandingContainer

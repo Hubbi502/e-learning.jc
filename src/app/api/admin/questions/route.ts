@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { exam_ids, question_text, option_a, option_b, option_c, option_d, correct_option } = body;
+    const { exam_ids, question_text, option_a, option_b, option_c, option_d, correct_option, explanation } = body;
 
     // Validate required fields
     if (!question_text || !option_a || !option_b || !option_c || !option_d || !correct_option) {
@@ -119,6 +119,7 @@ export async function POST(request: NextRequest) {
         option_c: option_c.trim(),
         option_d: option_d.trim(),
         correct_option,
+        explanation: explanation?.trim() || null,
         exam_questions: exam_ids && exam_ids.length > 0 ? {
           create: exam_ids.map((exam_id: string) => ({
             exam_id

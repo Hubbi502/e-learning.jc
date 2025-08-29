@@ -1,6 +1,6 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Sun, Moon, Trophy, AlertCircle } from 'lucide-react';
+import { Sun, Moon, Trophy, AlertCircle, BookOpen } from 'lucide-react';
 
 interface ExamResultsProps {
   results: {
@@ -9,14 +9,26 @@ interface ExamResultsProps {
     totalQuestions: number;
     percentage: number;
   };
+  studentData?: {
+    student: {
+      id: string;
+      name: string;
+      class: string;
+      exam_code: string;
+      category: string;
+    };
+  };
   isDark: boolean;
   toggleTheme: () => void;
+  onReviewAnswers?: () => void;
 }
 
 export default function ExamResults({ 
   results, 
+  studentData,
   isDark, 
-  toggleTheme 
+  toggleTheme,
+  onReviewAnswers
 }: ExamResultsProps) {
   const router = useRouter();
 
@@ -135,17 +147,33 @@ export default function ExamResults({
             </div>
           </div>
 
-          {/* Action Button */}
-          <button
-            onClick={() => router.push('/')}
-            className={`px-8 py-4 rounded-xl font-semibold text-white transition-all duration-300 hover:scale-105 ${
-              results.passed
-                ? 'bg-green-600 hover:bg-green-700'
-                : 'bg-blue-600 hover:bg-blue-700'
-            }`}
-          >
-            Back to Home
-          </button>
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            {onReviewAnswers && (
+              <button
+                onClick={onReviewAnswers}
+                className={`px-8 py-4 rounded-xl font-semibold text-white transition-all duration-300 hover:scale-105 ${
+                  isDark
+                    ? 'bg-purple-600 hover:bg-purple-700'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                } flex items-center justify-center`}
+              >
+                <BookOpen size={20} className="mr-2" />
+                Review Answers
+              </button>
+            )}
+            
+            <button
+              onClick={() => router.push('/')}
+              className={`px-8 py-4 rounded-xl font-semibold text-white transition-all duration-300 hover:scale-105 ${
+                results.passed
+                  ? 'bg-green-600 hover:bg-green-700'
+                  : 'bg-gray-600 hover:bg-gray-700'
+              }`}
+            >
+              Back to Home
+            </button>
+          </div>
         </div>
       </div>
     </div>
