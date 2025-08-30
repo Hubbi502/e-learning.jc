@@ -119,11 +119,29 @@ model Score {
   @@map("scores")
 }
 
+model Material {
+  id          String   @id @default(uuid())
+  title       String
+  content     String   @db.Text
+  category    Category
+  description String?  @db.Text
+  author_id   String
+  is_published Boolean @default(false)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  author AdminUser @relation(fields: [author_id], references: [id], onDelete: Cascade)
+
+  @@map("materials")
+}
+
 model AdminUser {
   id            String   @id @default(uuid())
   email         String   @unique
   password_hash String
   created_at    DateTime @default(now())
+
+  materials Material[]
 
   @@map("admin_users")
 }

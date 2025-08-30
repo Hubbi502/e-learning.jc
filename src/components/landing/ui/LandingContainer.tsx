@@ -4,6 +4,7 @@ import React from 'react';
 import LandingNavigation from './LandingNavigation';
 import HeroSection from './HeroSection';
 import FeaturesSection from './FeaturesSection';
+import MaterialsSection from './MaterialsSection';
 import LandingFooter from './LandingFooter';
 
 interface LandingContainerProps {
@@ -32,6 +33,9 @@ export default function LandingContainer({
 
       {/* Features Section */}
       <FeaturesSection isDark={isDark} />
+
+      {/* Materials Section */}
+      <MaterialsSection isDark={isDark} />
 
       {/* Footer */}
       <LandingFooter isDark={isDark} />

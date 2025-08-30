@@ -16,9 +16,10 @@ import {
 import { QuestionManagement } from './QuestionManagement';
 import { ExamManagement } from './ExamManagement';
 import { StudentManagement } from './StudentManagement';
+import { MaterialManagement } from './MaterialManagement';
 import { DashboardOverview } from './DashboardOverview';
 
-type TabType = 'overview' | 'questions' | 'exams' | 'students';
+type TabType = 'overview' | 'questions' | 'exams' | 'students' | 'materials';
 
 export function AdminDashboard() {
   const { user, logout } = useAuth();
@@ -34,6 +35,7 @@ export function AdminDashboard() {
     { id: 'questions' as TabType, name: 'Questions', icon: BookOpen },
     { id: 'exams' as TabType, name: 'Exams', icon: Calendar },
     { id: 'students' as TabType, name: 'Students', icon: Users },
+    { id: 'materials' as TabType, name: 'Materials', icon: FileText },
   ];
 
   const renderContent = () => {
@@ -46,6 +48,8 @@ export function AdminDashboard() {
         return <ExamManagement />;
       case 'students':
         return <StudentManagement />;
+      case 'materials':
+        return <MaterialManagement />;
       default:
         return <DashboardOverview />;
     }
