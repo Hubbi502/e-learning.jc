@@ -206,6 +206,7 @@ export function AdminDashboard() {
                     {activeTab === 'questions' && '質問'}
                     {activeTab === 'exams' && '試験'}
                     {activeTab === 'students' && '学生'}
+                    {activeTab === 'materials' && '主題'}
                   </span>
                 </div>
               </div>

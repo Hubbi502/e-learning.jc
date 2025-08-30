@@ -1,6 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/config/prisma';
 import { Category } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+
+// Helper function to handle Prisma errors
+function handlePrismaError(error: unknown) {
+  if (error instanceof PrismaClientKnownRequestError) {
+    if (error.code === 'P1001') {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'Database connection failed. Please try again later.',
+          error: 'Connection timeout'
+        },
+        { status: 503 }
+      );
+    }
+    if (error.code === 'P2025') {
+      return NextResponse.json(
+        { success: false, message: 'Material not found' },
+        { status: 404 }
+      );
+    }
+  }
+  
+  console.error('Database error:', error);
+  return NextResponse.json(
+    { 
+      success: false, 
+      message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? String(error) : undefined
+    },
+    { status: 500 }
+  );
+}
 
 // GET single material
 export async function GET(
@@ -35,11 +68,7 @@ export async function GET(
     });
 
   } catch (error) {
-    console.error('Error fetching material:', error);
-    return NextResponse.json(
-      { success: false, message: 'Internal server error' },
-      { status: 500 }
-    );
+    return handlePrismaError(error);
   }
 }
 
@@ -100,11 +129,7 @@ export async function PUT(
     });
 
   } catch (error) {
-    console.error('Error updating material:', error);
-    return NextResponse.json(
-      { success: false, message: 'Internal server error' },
-      { status: 500 }
-    );
+    return handlePrismaError(error);
   }
 }
 
@@ -139,10 +164,6 @@ export async function DELETE(
     });
 
   } catch (error) {
-    console.error('Error deleting material:', error);
-    return NextResponse.json(
-      { success: false, message: 'Internal server error' },
-      { status: 500 }
-    );
+    return handlePrismaError(error);
   }
 }
