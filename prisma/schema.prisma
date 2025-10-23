@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,48 +7,34 @@ datasource db {
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
-        
-enum Category {
-  Gengo
-  Bunka
-}
-
-enum Option {
-  A
-  B
-  C
-  D
-}
 
 model Question {
-  id             String   @id @default(uuid())
+  id             String         @id @default(uuid())
   question_text  String
   option_a       String
   option_b       String
   option_c       String
   option_d       String
   correct_option Option
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
-
-  exam_questions ExamQuestion[]
+  created_at     DateTime       @default(now())
+  updated_at     DateTime       @updatedAt
   answers        Answer[]
+  exam_questions ExamQuestion[]
 
   @@map("questions")
 }
 
 model Exam {
-  id         String    @id @default(uuid())
-  name       String    @default("")
-  exam_code  String    @unique
-  category   Category
-  duration   Int       @default(60)
-  start_time DateTime?
-  end_time   DateTime?
-  is_active  Boolean   @default(false)
-  created_at DateTime  @default(now())
-  updated_at DateTime  @updatedAt
-
+  id             String         @id @default(uuid())
+  category       Category
+  duration       Int            @default(60)
+  start_time     DateTime?
+  end_time       DateTime?
+  is_active      Boolean        @default(false)
+  created_at     DateTime       @default(now())
+  updated_at     DateTime       @updatedAt
+  exam_code      String         @unique
+  name           String         @default("")
   exam_questions ExamQuestion[]
   scores         Score[]
 
@@ -57,13 +42,12 @@ model Exam {
 }
 
 model ExamQuestion {
-  id          String @id @default(uuid())
+  id          String   @id @default(uuid())
   exam_id     String
   question_id String
   created_at  DateTime @default(now())
-
-  exam     Exam     @relation(fields: [exam_id], references: [id], onDelete: Cascade)
-  question Question @relation(fields: [question_id], references: [id], onDelete: Cascade)
+  exam        Exam     @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  question    Question @relation(fields: [question_id], references: [id], onDelete: Cascade)
 
   @@unique([exam_id, question_id])
   @@map("exam_questions")
@@ -79,11 +63,11 @@ model Student {
   violations   Int       @default(0)
   is_submitted Boolean   @default(false)
   created_at   DateTime  @default(now())
-
-  answers Answer[]
-  scores  Score[]
+  answers      Answer[]
+  scores       Score[]
 
   @@map("students")
+  Attendance Attendance[]
 }
 
 model Answer {
@@ -93,26 +77,24 @@ model Answer {
   answer      Option?
   is_correct  Boolean?
   created_at  DateTime @default(now())
-
-  student  Student  @relation(fields: [student_id], references: [id], onDelete: Cascade)
-  question Question @relation(fields: [question_id], references: [id], onDelete: Cascade)
+  question    Question @relation(fields: [question_id], references: [id], onDelete: Cascade)
+  student     Student  @relation(fields: [student_id], references: [id], onDelete: Cascade)
 
   @@unique([student_id, question_id])
   @@map("answers")
 }
 
 model Score {
-  id              String  @id @default(uuid())
+  id              String   @id @default(uuid())
   student_id      String
   exam_id         String
-  score           Int     @default(0)
-  total_questions Int     @default(0)
-  percentage      Decimal @default(0.00) @db.Decimal(5, 2)
-  is_published    Boolean @default(false)
+  score           Int      @default(0)
+  total_questions Int      @default(0)
+  percentage      Decimal  @default(0.00) @db.Decimal(5, 2)
+  is_published    Boolean  @default(false)
   created_at      DateTime @default(now())
-
-  student Student @relation(fields: [student_id], references: [id], onDelete: Cascade)
-  exam    Exam    @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  exam            Exam     @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  student         Student  @relation(fields: [student_id], references: [id], onDelete: Cascade)
 
   @@unique([student_id, exam_id])
   @@map("scores")
@@ -120,9 +102,56 @@ model Score {
 
 model AdminUser {
   id            String   @id @default(uuid())
-  email         String   @unique
   password_hash String
   created_at    DateTime @default(now())
+  email         String   @unique
 
   @@map("admin_users")
+  Attendance Attendance[]
+}
+
+enum Category {
+  Gengo
+  Bunka
+}
+
+enum Option {
+  A
+  B
+  C
+  D
+}
+model Attendance {
+ id String @id @default(uuid())
+ student_id String
+ date DateTime @default(now())
+ status AttendanceStatus
+ recorded_at DateTime @default(now()) // Stempel waktu kapan absensi dicatat
+ scanned_admin_id String // Tautan ke AdminUser yang barcodenya dipindai
+ meeting_id String
+ created_at DateTime @default(now())
+ updated_at DateTime @updatedAt
+ student Student @relation(fields: [student_id], references: [id], onDelete: Cascade)
+ scannedByAdmin AdminUser @relation(fields: [scanned_admin_id], references: [id], onDelete: Cascade)
+ meeting Meeting @relation(fields: [meeting_id], references: [id], onDelete: Cascade)
+ @@unique([student_id, date]) // Memberlakukan satu catatan absensi per siswa per hari
+ @@map("attendances")
+}
+enum AttendanceStatus {
+ HADIR
+ TIDAK_HADIR
+ TERLAMBAT
+ IZIN
+}
+
+model Meeting {
+  id String @id @default(uuid())
+  title String @default("")
+  starts_at DateTime?
+  ends_at DateTime?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  attendances Attendance[]
+
+  @@map("meetings")
 }
