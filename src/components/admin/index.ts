@@ -4,6 +4,7 @@ export { DashboardOverview } from './DashboardOverview';
 export { QuestionManagement } from './QuestionManagement';
 export { ExamManagement } from './ExamManagement';
 export { StudentManagement } from './StudentManagement';
+export { AttendanceManagement } from './AttendanceManagement';
 
 // Exam Management Components
 export * from './exam';

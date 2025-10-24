@@ -2,23 +2,26 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { 
-  BookOpen, 
-  GraduationCap, 
-  Users, 
-  LogOut, 
-  Menu, 
+import {
+  BookOpen,
+  GraduationCap,
+  Users,
+  LogOut,
+  Menu,
   X,
   BarChart3,
   FileText,
-  Calendar
+  Calendar,
+  Clock
 } from 'lucide-react';
+import Link from 'next/link';
 import { QuestionManagement } from './QuestionManagement';
 import { ExamManagement } from './ExamManagement';
 import { StudentManagement } from './StudentManagement';
 import { DashboardOverview } from './DashboardOverview';
+import { AttendanceManagement } from './AttendanceManagement';
 
-type TabType = 'overview' | 'questions' | 'exams' | 'students';
+type TabType = 'overview' | 'questions' | 'exams' | 'students' | 'attendance';
 
 export function AdminDashboard() {
   const { user, logout } = useAuth();
@@ -34,6 +37,7 @@ export function AdminDashboard() {
     { id: 'questions' as TabType, name: 'Questions', icon: BookOpen },
     { id: 'exams' as TabType, name: 'Exams', icon: Calendar },
     { id: 'students' as TabType, name: 'Students', icon: Users },
+    { id: 'attendance' as TabType, name: 'Attendance', icon: Clock },
   ];
 
   const renderContent = () => {
@@ -46,6 +50,8 @@ export function AdminDashboard() {
         return <ExamManagement />;
       case 'students':
         return <StudentManagement />;
+      case 'attendance':
+        return <AttendanceManagement />;
       default:
         return <DashboardOverview />;
     }
@@ -71,7 +77,7 @@ export function AdminDashboard() {
         <div className="relative flex items-center justify-between h-20 px-4 sm:px-6 bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900">
           {/* Subtle pattern overlay */}
           <div className="absolute inset-0 opacity-10 bg-gradient-to-r from-transparent via-white to-transparent"></div>
-          
+
           <div className="flex items-center min-w-0 relative z-10">
             <div className="relative">
               <GraduationCap className="h-8 w-8 sm:h-9 sm:w-9 text-yellow-400 flex-shrink-0 drop-shadow-lg" />
@@ -118,24 +124,24 @@ export function AdminDashboard() {
                   {isActive && (
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-yellow-400 rounded-r-full shadow-lg shadow-yellow-400/50"></div>
                   )}
-                  
+
                   <div className={`
                     flex items-center justify-center w-10 h-10 rounded-lg mr-4 transition-all duration-300
-                    ${isActive 
-                      ? 'bg-white/20 text-white shadow-inner' 
+                    ${isActive
+                      ? 'bg-white/20 text-white shadow-inner'
                       : 'bg-slate-700/50 group-hover:bg-slate-600/50'
                     }
                   `}>
                     <Icon className="h-5 w-5" />
                   </div>
-                  
+
                   <div className="flex-1">
                     <span className="text-sm sm:text-base font-medium tracking-wide">{tab.name}</span>
                     {isActive && (
                       <div className="w-12 h-0.5 bg-yellow-400/60 mt-1 rounded-full"></div>
                     )}
                   </div>
-                  
+
                   {/* Subtle glow effect for active item */}
                   {isActive && (
                     <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/20 to-indigo-700/20 rounded-xl blur-xl"></div>
@@ -165,7 +171,7 @@ export function AdminDashboard() {
               </div>
             </div>
           </div>
-          
+
           <button
             onClick={handleLogout}
             className="w-full group flex items-center justify-center px-4 py-3.5 sm:py-4 text-sm sm:text-base text-slate-300 hover:text-white bg-gradient-to-r from-slate-700/50 to-slate-600/50 hover:from-red-600/80 hover:to-red-700/80 rounded-xl shadow-lg border border-slate-600/30 hover:border-red-500/50 transition-all duration-300 hover:transform hover:scale-[1.02] backdrop-blur-sm"
@@ -188,7 +194,7 @@ export function AdminDashboard() {
               >
                 <Menu className="h-5 w-5 sm:h-6 sm:w-6" />
               </button>
-              
+
               <div className="flex items-center">
                 <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 capitalize tracking-tight">
                   {activeTab}
@@ -200,11 +206,12 @@ export function AdminDashboard() {
                     {activeTab === 'questions' && '質問'}
                     {activeTab === 'exams' && '試験'}
                     {activeTab === 'students' && '学生'}
+                    {activeTab === 'attendance' && '出席'}
                   </span>
                 </div>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-3 sm:space-x-6 min-w-0">
               <div className="hidden sm:flex items-center space-x-3">
                 <span className="text-sm text-slate-600 font-medium">
@@ -214,7 +221,7 @@ export function AdminDashboard() {
                   {user?.email}
                 </span>
               </div>
-              
+
               <div className="relative">
                 <div className="h-8 w-8 sm:h-10 sm:w-10 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg">
                   <span className="text-white text-sm sm:text-base font-bold">
