@@ -64,7 +64,8 @@ export function AttendanceManagement() {
       });
       const data = await res.json();
       if (data.success) {
-        const payload = data.qr_payload || data.meeting?.id || null;
+        // qr_payload now contains full URL
+        const payload = data.qr_payload || `${window.location.origin}/attendance/${data.meeting?.id}`;
         setQrPayload(payload);
         
         // Generate QR code immediately after creating meeting
@@ -92,8 +93,10 @@ export function AttendanceManagement() {
   }
 
   function openQr(meeting: Meeting) {
-    setQrPayload(meeting.qr_payload || meeting.id);
-    generateQrCode(meeting.qr_payload || meeting.id);
+    // Generate full URL if qr_payload doesn't exist or is just an ID
+    const payload = meeting.qr_payload || `${window.location.origin}/attendance/${meeting.id}`;
+    setQrPayload(payload);
+    generateQrCode(payload);
     setShowQrModal(true);
   }
 
@@ -381,47 +384,44 @@ export function AttendanceManagement() {
                                 </p>
                               </div>
                             )}
-                            {m.qr_payload && (
-                              <div className="mt-2 p-2 bg-slate-100 rounded-lg border border-slate-200">
-                                <p className="text-xs text-slate-600 flex items-center gap-2">
-                                  <span className="font-semibold">Payload:</span>
-                                  <span className="font-mono text-xs text-slate-800 truncate">{m.qr_payload}</span>
-                                </p>
-                              </div>
-                            )}
+                            <div className="mt-2 p-2 bg-slate-100 rounded-lg border border-slate-200">
+                              <p className="text-xs text-slate-600 flex items-center gap-2">
+                                <span className="font-semibold">QR URL:</span>
+                                <span className="font-mono text-xs text-slate-800 truncate">
+                                  {m.qr_payload || `${window.location.origin}/attendance/${m.id}`}
+                                </span>
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                        <a
+                          href={`/dashboard/attendance/${m.id}`}
+                          className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:from-emerald-600 hover:to-emerald-700 text-sm font-semibold transition-all duration-300 transform hover:scale-105"
+                        >
+                          <Users className="w-4 h-4" />
+                          <span>Attendance</span>
+                        </a>
                         <button
                           onClick={() => openQr(m)}
                           className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-lg shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 hover:from-indigo-600 hover:to-indigo-700 text-sm font-semibold transition-all duration-300 transform hover:scale-105"
                         >
                           <QrCode className="w-4 h-4" />
-                          <span>View QR</span>
+                          <span>QR</span>
                         </button>
                         <button
                           onClick={() => { 
-                            navigator.clipboard?.writeText(m.qr_payload || m.id);
-                            setSuccess('Payload copied!');
+                            const attendanceUrl = m.qr_payload || `${window.location.origin}/attendance/${m.id}`;
+                            navigator.clipboard?.writeText(attendanceUrl);
+                            setSuccess('Attendance link copied!');
                             setTimeout(() => setSuccess(null), 2000);
                           }}
                           className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-slate-200 rounded-lg text-slate-700 text-sm font-semibold hover:bg-slate-50 hover:border-slate-300 transition-all transform hover:scale-105"
-                          title="Copy payload"
+                          title="Copy attendance link"
                         >
                           <Copy className="w-4 h-4" />
-                          <span className="hidden sm:inline">Copy</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard?.writeText(m.id);
-                            setSuccess('ID copied!');
-                            setTimeout(() => setSuccess(null), 2000);
-                          }}
-                          className="px-4 py-2.5 text-sm font-semibold border-2 border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all text-slate-700"
-                          title="Copy meeting ID"
-                        >
-                          ID
+                          <span className="hidden sm:inline">Link</span>
                         </button>
                       </div>
                     </div>
@@ -547,16 +547,16 @@ export function AttendanceManagement() {
                     />
                   </div>
 
-                  {/* Payload Info */}
+                  {/* URL Info */}
                   <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-2xl border-2 border-slate-200">
-                    <p className="text-xs text-slate-500 font-semibold mb-2">Meeting ID / Payload:</p>
+                    <p className="text-xs text-slate-500 font-semibold mb-2">Attendance URL:</p>
                     <pre className="text-sm font-mono text-slate-800 whitespace-pre-wrap break-all leading-relaxed">{qrPayload}</pre>
                   </div>
                   
                   <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
                     <p className="text-xs text-indigo-700 font-medium flex items-center gap-2">
                       <AlertCircle className="w-4 h-4" />
-                      Students can scan this QR code to mark their attendance
+                      Students can scan this QR code to access the attendance form directly
                     </p>
                   </div>
                 </div>
@@ -596,14 +596,14 @@ export function AttendanceManagement() {
                   onClick={() => { 
                     if (qrPayload) {
                       navigator.clipboard?.writeText(qrPayload);
-                      setSuccess('Payload copied to clipboard!');
+                      setSuccess('Attendance URL copied to clipboard!');
                       setTimeout(() => setSuccess(null), 2000);
                     }
                   }}
                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:from-emerald-700 hover:to-emerald-800 font-semibold text-sm transition-all duration-300 transform hover:scale-105"
                 >
                   <Copy className="w-4 h-4" />
-                  Copy ID
+                  Copy URL
                 </button>
               </div>
             </div>

@@ -134,7 +134,7 @@ model Attendance {
  student Student @relation(fields: [student_id], references: [id], onDelete: Cascade)
  scannedByAdmin AdminUser @relation(fields: [scanned_admin_id], references: [id], onDelete: Cascade)
  meeting Meeting @relation(fields: [meeting_id], references: [id], onDelete: Cascade)
- @@unique([student_id, date]) // Memberlakukan satu catatan absensi per siswa per hari
+ @@unique([student_id, meeting_id]) // Memberlakukan satu catatan absensi per siswa per meeting
  @@map("attendances")
 }
 enum AttendanceStatus {
