@@ -129,12 +129,15 @@ model Attendance {
  recorded_at DateTime @default(now()) // Stempel waktu kapan absensi dicatat
  scanned_admin_id String // Tautan ke AdminUser yang barcodenya dipindai
  meeting_id String
+ device_id String @default("unknown") // ID unik perangkat untuk mencegah absensi ganda dari satu device
  created_at DateTime @default(now())
  updated_at DateTime @updatedAt
  student Student @relation(fields: [student_id], references: [id], onDelete: Cascade)
  scannedByAdmin AdminUser @relation(fields: [scanned_admin_id], references: [id], onDelete: Cascade)
  meeting Meeting @relation(fields: [meeting_id], references: [id], onDelete: Cascade)
  @@unique([student_id, meeting_id]) // Memberlakukan satu catatan absensi per siswa per meeting
+ @@index([device_id]) // Index untuk performa query device
+ @@index([recorded_at]) // Index untuk performa query berdasarkan waktu
  @@map("attendances")
 }
 enum AttendanceStatus {

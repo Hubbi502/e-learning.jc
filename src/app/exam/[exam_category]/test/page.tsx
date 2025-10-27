@@ -84,7 +84,7 @@ export default function ExamTestPage() {
 
         // Set timer based on exam duration
         setTimeLeft(data.exam.duration * 60); // Convert minutes to seconds
-
+        
         // Fetch questions
         const response = await fetch(`/api/student/questions/${data.student.category}`);
         const questionsData = await response.json();
