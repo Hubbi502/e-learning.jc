@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { QrCode, PlusCircle, Clock, Copy, Search, Calendar, Users, TrendingUp, X, CheckCircle2, AlertCircle, Info, Lightbulb } from 'lucide-react';
+import { QrCode, PlusCircle, Clock, Copy, Search, Calendar, Users, TrendingUp, X, CheckCircle2, AlertCircle, Info, Lightbulb, Power } from 'lucide-react';
+import MeetingStatusToggle from './MeetingStatusToggle';
 
 type Meeting = {
   id: string;
@@ -25,6 +26,7 @@ export function AttendanceManagement() {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<'newest' | 'oldest'>('newest');
   const [loadingQr, setLoadingQr] = useState(false);
+  const [selectedMeetingForToggle, setSelectedMeetingForToggle] = useState<string | null>(null);
 
   async function fetchMeetings() {
     try {
@@ -404,6 +406,14 @@ export function AttendanceManagement() {
                           <span>Attendance</span>
                         </a>
                         <button
+                          onClick={() => setSelectedMeetingForToggle(m.id)}
+                          className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/40 hover:from-purple-600 hover:to-purple-700 text-sm font-semibold transition-all duration-300 transform hover:scale-105"
+                          title="Toggle meeting status"
+                        >
+                          <Power className="w-4 h-4" />
+                          <span>Toggle</span>
+                        </button>
+                        <button
                           onClick={() => openQr(m)}
                           className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-lg shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 hover:from-indigo-600 hover:to-indigo-700 text-sm font-semibold transition-all duration-300 transform hover:scale-105"
                         >
@@ -606,6 +616,50 @@ export function AttendanceManagement() {
                   Copy URL
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Meeting Status Toggle Modal */}
+      {selectedMeetingForToggle && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedMeetingForToggle(null)} />
+          <div className="relative z-10 bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border-2 border-slate-200 animate-in zoom-in duration-300">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-purple-600 via-purple-600 to-pink-600 p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="bg-white/20 p-3 rounded-2xl backdrop-blur-sm shadow-lg">
+                    <Power className="w-8 h-8 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Meeting Status</h3>
+                    <p className="text-purple-100 text-sm mt-1">会議ステータス</p>
+                  </div>
+                </div>
+                <button 
+                  className="text-white/80 hover:text-white transition-colors p-2 hover:bg-white/20 rounded-lg" 
+                  onClick={() => setSelectedMeetingForToggle(null)}
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              <MeetingStatusToggle meetingId={selectedMeetingForToggle} />
+            </div>
+
+            {/* Footer */}
+            <div className="bg-slate-50 px-6 py-4 flex items-center justify-end gap-3 border-t border-slate-200">
+              <button 
+                onClick={() => setSelectedMeetingForToggle(null)} 
+                className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/40 hover:from-purple-700 hover:to-purple-800 font-semibold text-sm transition-all duration-300"
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>

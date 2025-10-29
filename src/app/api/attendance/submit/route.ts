@@ -2,14 +2,73 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/config/prisma";
 import { cookies } from "next/headers";
 
+// Rate limiting storage (in-memory, untuk production gunakan Redis)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+
+// Helper function untuk rate limiting
+function checkRateLimit(identifier: string, maxRequests: number = 5, windowMs: number = 60000): boolean {
+  const now = Date.now();
+  const record = rateLimitMap.get(identifier);
+
+  if (!record || now > record.resetTime) {
+    // Reset atau buat baru
+    rateLimitMap.set(identifier, { count: 1, resetTime: now + windowMs });
+    return true;
+  }
+
+  if (record.count >= maxRequests) {
+    return false; // Rate limit exceeded
+  }
+
+  record.count++;
+  return true;
+}
+
+// Cleanup rate limit map setiap 5 menit
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of rateLimitMap.entries()) {
+    if (now > value.resetTime) {
+      rateLimitMap.delete(key);
+    }
+  }
+}, 300000);
+
 export async function POST(request: NextRequest) {
   try {
     const { meeting_id, name, class: className, deviceId } = await request.json();
+
+    // ===== RATE LIMITING: Cegah spam request =====
+    const rateLimitKey = `${deviceId}_${meeting_id}`;
+    if (!checkRateLimit(rateLimitKey, 5, 60000)) { // Max 5 requests per menit
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: "Terlalu banyak percobaan. Silakan tunggu beberapa saat.",
+          type: "RATE_LIMIT"
+        },
+        { status: 429 } // Too Many Requests
+      );
+    }
 
     // Validasi input
     if (!meeting_id || !name || !className || !deviceId) {
       return NextResponse.json(
         { success: false, message: "Semua field harus diisi termasuk deviceId" },
+        { status: 400 }
+      );
+    }
+
+    // ===== VALIDASI FORMAT DEVICE ID =====
+    // Device ID harus berformat UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(deviceId)) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: "Device ID tidak valid. Silakan refresh halaman.",
+          type: "INVALID_DEVICE_ID"
+        },
         { status: 400 }
       );
     }
@@ -44,6 +103,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ===== VALIDASI STATUS MEETING =====
+    const now = new Date();
+    
+    // Cek apakah meeting aktif
+    if (!meeting.is_active) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: "Meeting tidak aktif. Tidak dapat mengisi absensi.",
+          type: "MEETING_INACTIVE"
+        },
+        { status: 403 } // Forbidden
+      );
+    }
+
+    // Cek apakah meeting sudah berakhir
+    if (meeting.ends_at && now > new Date(meeting.ends_at)) {
+      // Auto-disable meeting
+      await prisma.meeting.update({
+        where: { id: meeting_id },
+        data: { is_active: false }
+      });
+
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: "Meeting telah berakhir. Tidak dapat mengisi absensi.",
+          type: "MEETING_ENDED"
+        },
+        { status: 403 } // Forbidden
+      );
+    }
+
+    // Cek apakah meeting belum dimulai
+    if (meeting.starts_at && now < new Date(meeting.starts_at)) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: "Meeting belum dimulai. Silakan tunggu hingga waktu mulai.",
+          type: "MEETING_NOT_STARTED"
+        },
+        { status: 403 } // Forbidden
+      );
+    }
+
     // Cari atau buat student
     let student = await prisma.student.findFirst({
       where: {
@@ -66,7 +170,7 @@ export async function POST(request: NextRequest) {
 
     // ===== VALIDASI GANDA: USER DAN DEVICE =====
     // Tentukan rentang waktu untuk "hari ini" (00:00:00 - 23:59:59)
-    const now = new Date();
+    // now sudah dideklarasi di atas untuk validasi meeting
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 

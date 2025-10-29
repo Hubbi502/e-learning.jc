@@ -152,6 +152,7 @@ model Meeting {
   title String @default("")
   starts_at DateTime?
   ends_at DateTime?
+  is_active Boolean @default(true)
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
   attendances Attendance[]

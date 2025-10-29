@@ -13,29 +13,56 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
     name: '',
     class: ''
   });
+
   const [deviceId, setDeviceId] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [alreadySubmitted, setAlreadySubmitted] = useState(false);
 
-  // ===== DEVICE ID MANAGEMENT =====
-  // Saat komponen dimuat, cek dan buat device ID
+  // ===== DEVICE ID & SUBMISSION CHECK =====
   useEffect(() => {
-    // Cek apakah kode berjalan di browser (bukan server-side)
     if (typeof window !== 'undefined') {
+      // Generate atau ambil Device ID
       let storedDeviceId = localStorage.getItem('attendance_device_id');
       
-      // Jika belum ada, buat UUID baru
       if (!storedDeviceId) {
-        // Generate UUID menggunakan crypto.randomUUID()
         storedDeviceId = crypto.randomUUID();
-        // Simpan ke localStorage
         localStorage.setItem('attendance_device_id', storedDeviceId);
       }
       
       setDeviceId(storedDeviceId);
+
+      // ===== CEK APAKAH SUDAH SUBMIT HARI INI =====
+      const submissionKey = `attendance_submitted_${meetingId}_${storedDeviceId}`;
+      const submissionData = localStorage.getItem(submissionKey);
+      
+      if (submissionData) {
+        try {
+          const data = JSON.parse(submissionData);
+          const submittedDate = new Date(data.timestamp);
+          const today = new Date();
+          
+          // Cek apakah submission masih hari ini
+          const isSameDay = 
+            submittedDate.getDate() === today.getDate() &&
+            submittedDate.getMonth() === today.getMonth() &&
+            submittedDate.getFullYear() === today.getFullYear();
+          
+          if (isSameDay) {
+            setAlreadySubmitted(true);
+            setError(`Anda sudah mengisi absensi hari ini sebagai ${data.name} (${data.class})`);
+          } else {
+            // Hapus data lama jika beda hari
+            localStorage.removeItem(submissionKey);
+          }
+        } catch (e) {
+          // Jika data corrupt, hapus
+          localStorage.removeItem(submissionKey);
+        }
+      }
     }
-  }, []);
+  }, [meetingId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,6 +71,27 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
     if (!deviceId) {
       setError('Device ID belum tersedia. Silakan refresh halaman.');
       return;
+    }
+
+    // ===== VALIDASI CLIENT-SIDE: Cek localStorage =====
+    if (alreadySubmitted) {
+      setError('Anda sudah mengisi absensi hari ini. Tidak dapat submit ulang.');
+      return;
+    }
+
+    // Cek ulang localStorage sebelum submit (double check)
+    const submissionKey = `attendance_submitted_${meetingId}_${deviceId}`;
+    const existingSubmission = localStorage.getItem(submissionKey);
+    
+    if (existingSubmission) {
+      try {
+        const data = JSON.parse(existingSubmission);
+        setError(`Anda sudah mengisi absensi hari ini sebagai ${data.name} (${data.class})`);
+        setAlreadySubmitted(true);
+        return;
+      } catch (e) {
+        // Data corrupt, lanjutkan
+      }
     }
     
     setLoading(true);
@@ -59,14 +107,26 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
           meeting_id: meetingId,
           name: formData.name.trim(),
           class: formData.class.trim(),
-          deviceId: deviceId, // Kirim device ID ke server
+          deviceId: deviceId,
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
+        // ===== SIMPAN KE LOCALSTORAGE: Mencegah submit ulang =====
+        const submissionData = {
+          name: formData.name.trim(),
+          class: formData.class.trim(),
+          timestamp: new Date().toISOString(),
+          attendanceId: data.attendance.id
+        };
+        
+        localStorage.setItem(submissionKey, JSON.stringify(submissionData));
+        
         setSuccess(true);
+        setAlreadySubmitted(true);
+        
         // Reset form
         setFormData({ name: '', class: '' });
         
@@ -77,6 +137,20 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
       } else {
         // Tampilkan error yang spesifik dari server
         setError(data.message || 'Gagal mencatat absensi');
+        
+        // Jika error adalah duplicate, tandai sudah submit
+        if (data.type === 'USER_DUPLICATE' || data.type === 'DEVICE_DUPLICATE' || data.type === 'COOKIE_DUPLICATE') {
+          setAlreadySubmitted(true);
+          
+          // Simpan info ke localStorage
+          const errorSubmissionData = {
+            name: formData.name.trim(),
+            class: formData.class.trim(),
+            timestamp: new Date().toISOString(),
+            error: true
+          };
+          localStorage.setItem(submissionKey, JSON.stringify(errorSubmissionData));
+        }
       }
     } catch (err) {
       setError('Terjadi kesalahan. Silakan coba lagi.');
@@ -112,13 +186,27 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
           <p className="text-sm font-semibold mb-1">❌ Gagal Mengisi Absensi</p>
           <p className="text-sm">{error}</p>
+          {alreadySubmitted && (
+            <p className="text-xs mt-2 text-red-600 font-semibold">
+              ⚠️ Sistem telah mendeteksi bahwa Anda sudah mengisi absensi hari ini.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Warning jika sudah submit */}
+      {alreadySubmitted && !error && (
+        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg">
+          <p className="text-sm font-semibold mb-1">⚠️ Sudah Mengisi Absensi</p>
+          <p className="text-sm">Anda sudah mengisi absensi untuk meeting ini hari ini.</p>
         </div>
       )}
 
       {/* Device ID Info (for debugging, bisa dihapus di production) */}
       {deviceId && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-2 rounded-lg text-xs">
-          <p className="font-mono">Device ID: {deviceId.substring(0, 8)}...</p>
+          <p className="font-mono">🔒 Device ID: {deviceId.substring(0, 8)}...{deviceId.substring(deviceId.length - 4)}</p>
+          <p className="mt-1 text-blue-600">Status: {alreadySubmitted ? '✅ Sudah Absen' : '⏳ Belum Absen'}</p>
         </div>
       )}
 
@@ -161,10 +249,12 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={loading || !formData.name.trim() || !formData.class.trim() || !deviceId}
+        disabled={loading || !formData.name.trim() || !formData.class.trim() || !deviceId || alreadySubmitted}
         className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98]"
       >
-        {loading ? (
+        {alreadySubmitted ? (
+          '✓ Sudah Mengisi Absensi Hari Ini'
+        ) : loading ? (
           <span className="flex items-center justify-center">
             <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -177,15 +267,7 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
         )}
       </button>
 
-      {/* Info Keamanan */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-xs text-gray-600">
-        <p className="font-semibold mb-1">🔒 Sistem Keamanan:</p>
-        <ul className="list-disc list-inside space-y-1">
-          <li>Setiap user hanya dapat absen 1x per hari</li>
-          <li>Setiap perangkat hanya dapat digunakan 1x per hari</li>
-          <li>Data Anda dilindungi dengan aman</li>
-        </ul>
-      </div>
+
     </form>
   );
 }
