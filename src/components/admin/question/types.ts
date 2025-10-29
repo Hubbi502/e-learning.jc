@@ -13,6 +13,7 @@ export interface Question {
   option_c: string;
   option_d: string;
   correct_option: 'A' | 'B' | 'C' | 'D';
+  explanation?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -25,6 +26,7 @@ export interface QuestionFormData {
   option_c: string;
   option_d: string;
   correct_option: 'A' | 'B' | 'C' | 'D';
+  explanation?: string;
 }
 
 export interface Exam {

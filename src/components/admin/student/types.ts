@@ -13,6 +13,7 @@ export interface Student {
     score: number;
     total_questions: number;
     percentage: number | string | any; // Can be Decimal from Prisma
+    created_at: string;
     exam: {
       id: string;
       category: 'Gengo' | 'Bunka';

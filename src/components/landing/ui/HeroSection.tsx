@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { BookOpen, Globe, ChevronRight } from 'lucide-react';
+import { BookOpen, Globe, ChevronRight, Search } from 'lucide-react';
 
 interface HeroSectionProps {
   isDark: boolean;
@@ -14,6 +14,10 @@ export default function HeroSection({ isDark, isVisible }: HeroSectionProps) {
 
   const handleTakeTest = (category: 'gengo' | 'bunka') => {
     router.push(`/exam/${category}`);
+  };
+
+  const handleReviewAnswers = () => {
+    router.push('/review');
   };
 
   return (
@@ -117,6 +121,27 @@ export default function HeroSection({ isDark, isVisible }: HeroSectionProps) {
                 }`}></div>
               </div>
             </div>
+
+          {/* Review Button */}
+          <div className="text-center">
+            <button
+              onClick={handleReviewAnswers}
+              className={`inline-flex items-center space-x-3 px-8 py-4 rounded-2xl font-semibold text-lg transition-all duration-300 hover:scale-105 transform hover:shadow-2xl ${
+                isDark 
+                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white border border-indigo-500' 
+                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-xl'
+              }`}
+            >
+              <Search className="w-6 h-6" />
+              <span>Review My Exam Answers</span>
+              <ChevronRight className="w-5 h-5" />
+            </button>
+            <p className={`mt-3 text-sm ${
+              isDark ? 'text-purple-200' : 'text-gray-600'
+            }`}>
+              Already took an exam? Check your detailed results and review answers
+            </p>
+          </div>
         </div>
       </div>
     </section>

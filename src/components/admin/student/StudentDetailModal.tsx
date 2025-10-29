@@ -144,7 +144,7 @@ export function StudentDetailModal({ student, isOpen, onClose, onViewAnswers }: 
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {student.scores
-                      .sort((a, b) => new Date(b.exam.created_at).getTime() - new Date(a.exam.created_at).getTime())
+                      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                       .map((score, index) => {
                         // Handle percentage as Decimal (from Prisma) - convert to number
                         let percentage: number;
@@ -157,7 +157,7 @@ export function StudentDetailModal({ student, isOpen, onClose, onViewAnswers }: 
                         }
                         
                         const gradeInfo = getPerformanceGrade(percentage);
-                        const examDate = new Date(score.exam.created_at);
+                        const examDate = new Date(score.created_at);
                         
                         return (
                           <tr key={score.id} className={`

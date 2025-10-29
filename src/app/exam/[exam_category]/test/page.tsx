@@ -9,7 +9,8 @@ import {
   QuestionContent,
   NavigationPanel,
   ViolationWarningModal,
-  ExamResults
+  ExamResults,
+  ExamReview
 } from '@/components/exam';
 import { Question, StudentData } from '@/components/exam/types';
 
@@ -24,6 +25,8 @@ export default function ExamTestPage() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [examStarted, setExamStarted] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [showReview, setShowReview] = useState(false);
+  const [reviewData, setReviewData] = useState(null);
   const [flaggedQuestions, setFlaggedQuestions] = useState(new Set<number>());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -169,6 +172,30 @@ export default function ExamTestPage() {
     });
   };
 
+  const handleReviewAnswers = async () => {
+    if (!studentData) return;
+
+    try {
+      const response = await fetch(`/api/student/exam-review?studentId=${studentData.student.id}&examCode=${studentData.student.exam_code}`);
+      const result = await response.json();
+
+      if (result.success) {
+        setReviewData(result.data);
+        setShowReview(true);
+      } else {
+        setError(result.message);
+      }
+    } catch (error) {
+      console.error('Error loading review data:', error);
+      setError('Failed to load review data');
+    }
+  };
+
+  const handleBackFromReview = () => {
+    setShowReview(false);
+    setReviewData(null);
+  };
+
   const handleSubmitExam = async () => {
     if (!studentData || isSubmitting) return;
 
@@ -250,9 +277,28 @@ export default function ExamTestPage() {
     );
   }
 
+  if (showReview && reviewData) {
+    return (
+      <ExamReview 
+        reviewData={reviewData}
+        isDark={isDark}
+        toggleTheme={toggleTheme}
+        onBack={handleBackFromReview}
+      />
+    );
+  }
+
   if (showResults) {
     const results = JSON.parse(localStorage.getItem('examResults') || '{}');
-    return <ExamResults results={results} isDark={isDark} toggleTheme={toggleTheme} />;
+    return (
+      <ExamResults 
+        results={results} 
+        studentData={studentData || undefined}
+        isDark={isDark} 
+        toggleTheme={toggleTheme}
+        onReviewAnswers={handleReviewAnswers}
+      />
+    );
   }
 
   const currentQ = questions[currentQuestion];

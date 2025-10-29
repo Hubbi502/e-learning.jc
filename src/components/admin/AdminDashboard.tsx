@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { QuestionManagement } from './QuestionManagement';
 import { ExamManagement } from './ExamManagement';
 import { StudentManagement } from './StudentManagement';
+import { MaterialManagement } from './MaterialManagement';
 import { DashboardOverview } from './DashboardOverview';
 import { AttendanceManagement } from './AttendanceManagement';
 
@@ -71,10 +72,10 @@ export function AdminDashboard() {
       <div className={`
         fixed inset-y-0 left-0 z-50 w-72 sm:w-80 md:w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 shadow-2xl transform 
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
-        transition-transform duration-500 ease-in-out md:translate-x-0 border-r border-slate-700/50
+        transition-transform duration-500 ease-in-out md:translate-x-0 border-r border-slate-700/50 flex flex-col
       `}>
         {/* Header with Japanese-inspired design */}
-        <div className="relative flex items-center justify-between h-20 px-4 sm:px-6 bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900">
+        <div className="relative flex items-center justify-between h-20 px-4 sm:px-6 bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 flex-shrink-0">
           {/* Subtle pattern overlay */}
           <div className="absolute inset-0 opacity-10 bg-gradient-to-r from-transparent via-white to-transparent"></div>
 
@@ -99,9 +100,10 @@ export function AdminDashboard() {
           </button>
         </div>
 
-        {/* Navigation with Japanese aesthetic */}
-        <nav className="flex-1 mt-8 px-3 sm:px-4">
-          <div className="space-y-3">
+        {/* Navigation with Japanese aesthetic - Scrollable */}
+        <nav className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-slate-800 scrollbar-thumb-slate-600 hover:scrollbar-thumb-slate-500 admin-sidebar-nav">
+          <div className="mt-8 px-3 sm:px-4 pb-4">
+            <div className="space-y-3">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -149,11 +151,12 @@ export function AdminDashboard() {
                 </button>
               );
             })}
+            </div>
           </div>
         </nav>
 
         {/* User profile section with Japanese design */}
-        <div className="p-4 sm:p-6 border-t border-slate-700/50 bg-gradient-to-r from-slate-800/50 to-slate-700/50">
+        <div className="p-4 sm:p-6 border-t border-slate-700/50 bg-gradient-to-r from-slate-800/50 to-slate-700/50 flex-shrink-0">
           <div className="flex items-center mb-6 p-4 bg-gradient-to-r from-slate-700/80 to-slate-600/80 rounded-xl shadow-lg backdrop-blur-sm border border-slate-600/30">
             <div className="relative">
               <div className="h-12 w-12 sm:h-14 sm:w-14 bg-gradient-to-br from-yellow-400 via-yellow-500 to-amber-500 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg">

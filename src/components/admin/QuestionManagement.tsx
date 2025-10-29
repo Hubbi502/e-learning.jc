@@ -38,7 +38,8 @@ export function QuestionManagement() {
     option_b: '',
     option_c: '',
     option_d: '',
-    correct_option: 'A'
+    correct_option: 'A',
+    explanation: ''
   });
 
   useEffect(() => {
@@ -134,7 +135,8 @@ export function QuestionManagement() {
       option_b: question.option_b,
       option_c: question.option_c,
       option_d: question.option_d,
-      correct_option: question.correct_option
+      correct_option: question.correct_option,
+      explanation: question.explanation || ''
     });
     setShowForm(true);
   };
@@ -166,7 +168,8 @@ export function QuestionManagement() {
       option_b: '',
       option_c: '',
       option_d: '',
-      correct_option: 'A'
+      correct_option: 'A',
+      explanation: ''
     });
     setEditingQuestion(null);
     setShowForm(false);

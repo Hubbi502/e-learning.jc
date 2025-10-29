@@ -69,7 +69,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { exam_ids, question_text, option_a, option_b, option_c, option_d, correct_option } = body;
+    const { exam_ids, question_text, option_a, option_b, option_c, option_d, correct_option, explanation } = body;
 
     // Check if question exists
     const existingQuestion = await prisma.question.findUnique({
@@ -94,7 +94,8 @@ export async function PUT(
           option_b: option_b?.trim(),
           option_c: option_c?.trim(),
           option_d: option_d?.trim(),
-          correct_option
+          correct_option,
+          explanation: explanation?.trim() || null
         }
       });
 
