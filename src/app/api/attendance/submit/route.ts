@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
 
     // Query untuk mencari absensi yang sudah ada hari ini
     // Menggunakan OR untuk cek user ATAU device
-    const existingAttendance = await prisma.attendance.findFirst({
+    const existingAttendance: any = await prisma.attendance.findFirst({
       where: {
         OR: [
           {
@@ -198,11 +198,11 @@ export async function POST(request: NextRequest) {
             }
           }
         ]
-      },
+      } as any,
       include: {
         student: true
       }
-    });
+    }) as any;
 
     // Jika ada record yang cocok, tentukan alasan penolakan
     if (existingAttendance) {
@@ -214,7 +214,7 @@ export async function POST(request: NextRequest) {
       } 
       // Cek apakah ini device yang sama
       else if (existingAttendance.device_id === deviceId) {
-        errorMessage = `Device ini sudah digunakan untuk absensi hari ini oleh ${existingAttendance.student.name} (${existingAttendance.student.class})`;
+        errorMessage = `Device ini sudah digunakan untuk absensi hari ini oleh ${existingAttendance?.student?.name} (${existingAttendance?.student?.class})`;
       }
 
       return NextResponse.json(
@@ -258,7 +258,7 @@ export async function POST(request: NextRequest) {
         device_id: deviceId, // Simpan device ID
         date: new Date(),
         recorded_at: new Date()
-      }
+      } as any
     });
 
     // ===== SET COOKIE: Simpan informasi absensi di cookie =====
