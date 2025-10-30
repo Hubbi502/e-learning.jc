@@ -15,6 +15,7 @@ model Question {
   option_b       String
   option_c       String
   option_d       String
+  explanation    String?        @db.Text
   correct_option Option
   created_at     DateTime       @default(now())
   updated_at     DateTime       @updatedAt
