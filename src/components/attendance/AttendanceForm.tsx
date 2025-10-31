@@ -145,7 +145,7 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
         setError(data.message || 'Gagal mencatat absensi');
         
         // Jika error adalah duplicate, tandai sudah submit
-        if (data.type === 'USER_DUPLICATE' || data.type === 'DEVICE_DUPLICATE' || data.type === 'COOKIE_DUPLICATE' || data.type === 'IP_DUPLICATE') {
+        if (data.type === 'USER_DUPLICATE' || data.type === 'DEVICE_DUPLICATE' || data.type === 'COOKIE_DUPLICATE') {
           setAlreadySubmitted(true);
           
           // Simpan info ke localStorage
@@ -153,8 +153,7 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
             name: formData.name.trim(),
             class: formData.class.trim(),
             timestamp: new Date().toISOString(),
-            error: true,
-            duplicateType: data.type
+            error: true
           };
           localStorage.setItem(submissionKey, JSON.stringify(errorSubmissionData));
         }
@@ -212,21 +211,11 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
       {/* Device ID Info (for debugging, bisa dihapus di production) */}
       {deviceId && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-2 rounded-lg text-xs">
-          <p className="font-semibold mb-2 text-sm">🛡️ Multi-Layer Security Active</p>
-          <div className="space-y-1">
-            <p className="font-mono">🔒 Device Fingerprint: {deviceId.substring(0, 8)}...{deviceId.substring(deviceId.length - 4)}</p>
-            <p className="text-blue-600">📱 Status: {alreadySubmitted ? '✅ Sudah Absen' : '⏳ Belum Absen'}</p>
-            {fingerprintData?.confidence && (
-              <p className="text-blue-600">🎯 Confidence: {(fingerprintData.confidence.score * 100).toFixed(1)}%</p>
-            )}
-            <p className="text-blue-600">🌐 IP Protection: Active</p>
-            <p className="text-blue-600">🍪 Cookie Validation: Active</p>
-          </div>
-          <div className="mt-2 pt-2 border-t border-blue-300">
-            <p className="text-xs text-blue-600 italic">
-              Triple-layer security: FingerprintJS + IP Hash + Cookie
-            </p>
-          </div>
+          <p className="font-mono">🔒 Device Fingerprint: {deviceId.substring(0, 8)}...{deviceId.substring(deviceId.length - 4)}</p>
+          <p className="mt-1 text-blue-600">Status: {alreadySubmitted ? '✅ Sudah Absen' : '⏳ Belum Absen'}</p>
+          {fingerprintData?.confidence && (
+            <p className="mt-1 text-blue-600">Confidence Score: {(fingerprintData.confidence.score * 100).toFixed(1)}%</p>
+          )}
         </div>
       )}
 
