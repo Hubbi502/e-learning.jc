@@ -147,6 +147,7 @@ model Attendance {
  scanned_admin_id String // Tautan ke AdminUser yang barcodenya dipindai
  meeting_id String
  device_id String @default("unknown") // ID unik perangkat untuk mencegah absensi ganda dari satu device
+ ip_hash String? // Hashed IP address untuk security layer tambahan
  created_at DateTime @default(now())
  updated_at DateTime @updatedAt
  student Student @relation(fields: [student_id], references: [id], onDelete: Cascade)
@@ -155,6 +156,7 @@ model Attendance {
  @@unique([student_id, meeting_id]) // Memberlakukan satu catatan absensi per siswa per meeting
  @@index([device_id]) // Index untuk performa query device
  @@index([recorded_at]) // Index untuk performa query berdasarkan waktu
+ @@index([ip_hash]) // Index untuk performa query IP hash
  @@map("attendances")
 }
 enum AttendanceStatus {

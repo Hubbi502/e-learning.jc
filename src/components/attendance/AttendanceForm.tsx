@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useVisitorData } from '@fingerprintjs/fingerprintjs-pro-react';
 
 interface AttendanceFormProps {
   meetingId: string;
@@ -9,6 +10,11 @@ interface AttendanceFormProps {
 
 export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
   const router = useRouter();
+  const { isLoading: isFingerprintLoading, error: fingerprintError, data: fingerprintData, getData } = useVisitorData(
+    { extendedResult: true },
+    { immediate: true }
+  );
+  
   const [formData, setFormData] = useState({
     name: '',
     class: ''
@@ -22,19 +28,13 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
 
   // ===== DEVICE ID & SUBMISSION CHECK =====
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // Generate atau ambil Device ID
-      let storedDeviceId = localStorage.getItem('attendance_device_id');
-      
-      if (!storedDeviceId) {
-        storedDeviceId = crypto.randomUUID();
-        localStorage.setItem('attendance_device_id', storedDeviceId);
-      }
-      
-      setDeviceId(storedDeviceId);
+    if (typeof window !== 'undefined' && fingerprintData?.visitorId) {
+      // Use FingerprintJS visitor ID as device ID
+      const visitorId = fingerprintData.visitorId;
+      setDeviceId(visitorId);
 
       // ===== CEK APAKAH SUDAH SUBMIT HARI INI =====
-      const submissionKey = `attendance_submitted_${meetingId}_${storedDeviceId}`;
+      const submissionKey = `attendance_submitted_${meetingId}_${visitorId}`;
       const submissionData = localStorage.getItem(submissionKey);
       
       if (submissionData) {
@@ -62,14 +62,20 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
         }
       }
     }
-  }, [meetingId]);
+  }, [meetingId, fingerprintData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validasi device ID sudah tersedia
     if (!deviceId) {
-      setError('Device ID belum tersedia. Silakan refresh halaman.');
+      setError('Device fingerprint belum tersedia. Silakan tunggu sebentar...');
+      return;
+    }
+
+    // Show fingerprint error if any
+    if (fingerprintError) {
+      setError('Gagal mendapatkan fingerprint device. Silakan coba lagi.');
       return;
     }
 
@@ -139,7 +145,7 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
         setError(data.message || 'Gagal mencatat absensi');
         
         // Jika error adalah duplicate, tandai sudah submit
-        if (data.type === 'USER_DUPLICATE' || data.type === 'DEVICE_DUPLICATE' || data.type === 'COOKIE_DUPLICATE') {
+        if (data.type === 'USER_DUPLICATE' || data.type === 'DEVICE_DUPLICATE' || data.type === 'COOKIE_DUPLICATE' || data.type === 'IP_DUPLICATE') {
           setAlreadySubmitted(true);
           
           // Simpan info ke localStorage
@@ -147,7 +153,8 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
             name: formData.name.trim(),
             class: formData.class.trim(),
             timestamp: new Date().toISOString(),
-            error: true
+            error: true,
+            duplicateType: data.type
           };
           localStorage.setItem(submissionKey, JSON.stringify(errorSubmissionData));
         }
@@ -205,8 +212,28 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
       {/* Device ID Info (for debugging, bisa dihapus di production) */}
       {deviceId && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-2 rounded-lg text-xs">
-          <p className="font-mono">🔒 Device ID: {deviceId.substring(0, 8)}...{deviceId.substring(deviceId.length - 4)}</p>
-          <p className="mt-1 text-blue-600">Status: {alreadySubmitted ? '✅ Sudah Absen' : '⏳ Belum Absen'}</p>
+          <p className="font-semibold mb-2 text-sm">🛡️ Multi-Layer Security Active</p>
+          <div className="space-y-1">
+            <p className="font-mono">🔒 Device Fingerprint: {deviceId.substring(0, 8)}...{deviceId.substring(deviceId.length - 4)}</p>
+            <p className="text-blue-600">📱 Status: {alreadySubmitted ? '✅ Sudah Absen' : '⏳ Belum Absen'}</p>
+            {fingerprintData?.confidence && (
+              <p className="text-blue-600">🎯 Confidence: {(fingerprintData.confidence.score * 100).toFixed(1)}%</p>
+            )}
+            <p className="text-blue-600">🌐 IP Protection: Active</p>
+            <p className="text-blue-600">🍪 Cookie Validation: Active</p>
+          </div>
+          <div className="mt-2 pt-2 border-t border-blue-300">
+            <p className="text-xs text-blue-600 italic">
+              Triple-layer security: FingerprintJS + IP Hash + Cookie
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Loading fingerprint */}
+      {isFingerprintLoading && !deviceId && (
+        <div className="bg-gray-50 border border-gray-200 text-gray-700 px-4 py-3 rounded-lg text-center">
+          <p className="text-sm">🔍 Mendeteksi device fingerprint...</p>
         </div>
       )}
 
@@ -249,10 +276,18 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={loading || !formData.name.trim() || !formData.class.trim() || !deviceId || alreadySubmitted}
+        disabled={loading || !formData.name.trim() || !formData.class.trim() || !deviceId || alreadySubmitted || isFingerprintLoading}
         className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98]"
       >
-        {alreadySubmitted ? (
+        {isFingerprintLoading ? (
+          <span className="flex items-center justify-center">
+            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Mendeteksi Device...
+          </span>
+        ) : alreadySubmitted ? (
           '✓ Sudah Mengisi Absensi Hari Ini'
         ) : loading ? (
           <span className="flex items-center justify-center">

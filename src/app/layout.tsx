@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Sans_JP, Noto_Serif_JP } from "next/font/google";
 import { AuthProvider } from "@/context/AuthContext";
+import { FpjsProvider } from '@fingerprintjs/fingerprintjs-pro-react';
 import "./globals.css";
 
 const notoSansJP = Noto_Sans_JP({
@@ -113,9 +114,16 @@ export default function RootLayout({
       <body
         className={`${notoSansJP.variable} ${notoSerifJP.variable} antialiased transition-colors duration-300`}
       >
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <FpjsProvider
+          loadOptions={{
+            apiKey: "N0el3l9IyAg5dYzK7nTE",
+            region: "ap"
+          }}
+        >
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </FpjsProvider>
       </body>
     </html>
   );

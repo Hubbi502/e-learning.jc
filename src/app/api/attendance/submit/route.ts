@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/config/prisma";
 import { cookies } from "next/headers";
+import { getHashedIP, getClientIP } from "@/utils/ipHasher";
 
 // Rate limiting storage (in-memory, untuk production gunakan Redis)
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -38,6 +39,12 @@ export async function POST(request: NextRequest) {
   try {
     const { meeting_id, name, class: className, deviceId } = await request.json();
 
+    // ===== EXTRACT AND HASH IP ADDRESS =====
+    const clientIP = getClientIP(request);
+    const hashedIP = clientIP ? getHashedIP(request) : null;
+    
+    console.log(`[Attendance Security] IP: ${clientIP ? 'detected' : 'not detected'}, Hash: ${hashedIP ? 'generated' : 'not generated'}`);
+
     // ===== RATE LIMITING: Cegah spam request =====
     const rateLimitKey = `${deviceId}_${meeting_id}`;
     if (!checkRateLimit(rateLimitKey, 5, 60000)) { // Max 5 requests per menit
@@ -59,14 +66,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ===== VALIDASI FORMAT DEVICE ID =====
-    // Device ID harus berformat UUID
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(deviceId)) {
+    // ===== VALIDASI FORMAT DEVICE ID (FINGERPRINT) =====
+    // FingerprintJS visitor ID is alphanumeric string, typically 20 characters
+    // Format: base64url-like string (alphanumeric)
+    if (!deviceId || deviceId.length < 10 || deviceId.length > 50) {
       return NextResponse.json(
         { 
           success: false, 
-          message: "Device ID tidak valid. Silakan refresh halaman.",
+          message: "Device fingerprint tidak valid. Silakan refresh halaman.",
           type: "INVALID_DEVICE_ID"
         },
         { status: 400 }
@@ -168,36 +175,52 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // ===== VALIDASI GANDA: USER DAN DEVICE =====
+    // ===== VALIDASI GANDA: USER, DEVICE, DAN IP =====
     // Tentukan rentang waktu untuk "hari ini" (00:00:00 - 23:59:59)
     // now sudah dideklarasi di atas untuk validasi meeting
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
+    // Build OR conditions array for duplicate checks
+    const duplicateCheckConditions: any[] = [
+      {
+        // Cek User: apakah user ini sudah absen hari ini?
+        student_id: student.id,
+        meeting_id: meeting_id,
+        recorded_at: {
+          gte: startOfToday,
+          lte: endOfToday
+        }
+      },
+      {
+        // Cek Device: apakah device ini sudah digunakan untuk absen hari ini?
+        device_id: deviceId,
+        meeting_id: meeting_id,
+        recorded_at: {
+          gte: startOfToday,
+          lte: endOfToday
+        }
+      }
+    ];
+
+    // Add IP hash check if available
+    if (hashedIP) {
+      duplicateCheckConditions.push({
+        // Cek IP: apakah IP ini sudah digunakan untuk absen hari ini?
+        ip_hash: hashedIP,
+        meeting_id: meeting_id,
+        recorded_at: {
+          gte: startOfToday,
+          lte: endOfToday
+        }
+      });
+    }
+
     // Query untuk mencari absensi yang sudah ada hari ini
-    // Menggunakan OR untuk cek user ATAU device
+    // Menggunakan OR untuk cek user ATAU device ATAU IP
     const existingAttendance: any = await prisma.attendance.findFirst({
       where: {
-        OR: [
-          {
-            // Cek User: apakah user ini sudah absen hari ini?
-            student_id: student.id,
-            meeting_id: meeting_id,
-            recorded_at: {
-              gte: startOfToday,
-              lte: endOfToday
-            }
-          },
-          {
-            // Cek Device: apakah device ini sudah digunakan untuk absen hari ini?
-            device_id: deviceId,
-            meeting_id: meeting_id,
-            recorded_at: {
-              gte: startOfToday,
-              lte: endOfToday
-            }
-          }
-        ]
+        OR: duplicateCheckConditions
       } as any,
       include: {
         student: true
@@ -207,21 +230,29 @@ export async function POST(request: NextRequest) {
     // Jika ada record yang cocok, tentukan alasan penolakan
     if (existingAttendance) {
       let errorMessage = "";
+      let errorType = "DUPLICATE";
       
       // Cek apakah ini user yang sama
       if (existingAttendance.student_id === student.id) {
         errorMessage = "Anda sudah mengisi absensi untuk meeting ini hari ini";
+        errorType = "USER_DUPLICATE";
       } 
       // Cek apakah ini device yang sama
       else if (existingAttendance.device_id === deviceId) {
         errorMessage = `Device ini sudah digunakan untuk absensi hari ini oleh ${existingAttendance?.student?.name} (${existingAttendance?.student?.class})`;
+        errorType = "DEVICE_DUPLICATE";
+      }
+      // Cek apakah ini IP yang sama
+      else if (hashedIP && existingAttendance.ip_hash === hashedIP) {
+        errorMessage = `IP address ini sudah digunakan untuk absensi hari ini oleh ${existingAttendance?.student?.name} (${existingAttendance?.student?.class})`;
+        errorType = "IP_DUPLICATE";
       }
 
       return NextResponse.json(
         { 
           success: false, 
           message: errorMessage,
-          type: existingAttendance.student_id === student.id ? "USER_DUPLICATE" : "DEVICE_DUPLICATE"
+          type: errorType
         },
         { status: 409 } // 409 Conflict
       );
@@ -255,7 +286,8 @@ export async function POST(request: NextRequest) {
         meeting_id: meeting_id,
         status: status as any,
         scanned_admin_id: firstAdmin.id,
-        device_id: deviceId, // Simpan device ID
+        device_id: deviceId, // Simpan device ID (FingerprintJS)
+        ip_hash: hashedIP, // Simpan hashed IP address
         date: new Date(),
         recorded_at: new Date()
       } as any
