@@ -67,6 +67,12 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // ===== VALIDASI FORM: Cek apakah semua field sudah diisi =====
+    if (!formData.name.trim() || !formData.class.trim()) {
+      setError('⚠️ Mohon lengkapi semua field! Nama dan Kelas harus diisi.');
+      return;
+    }
+    
     // Validasi device ID sudah tersedia
     if (!deviceId) {
       setError('Device fingerprint belum tersedia. Silakan tunggu sebentar...');
@@ -266,7 +272,7 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={loading || !formData.name.trim() || !formData.class.trim() || !deviceId || alreadySubmitted || isFingerprintLoading}
+        disabled={loading || alreadySubmitted || isFingerprintLoading}
         className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98]"
       >
         {isFingerprintLoading ? (
@@ -291,6 +297,16 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
           '🚀 Kirim Absensi'
         )}
       </button>
+
+      {/* Helper text untuk field yang wajib diisi */}
+      {!alreadySubmitted && (!formData.name.trim() || !formData.class.trim()) && (
+        <div className="text-center text-sm text-gray-600">
+          <p className="flex items-center justify-center gap-1">
+            <span className="text-amber-500">⚠️</span>
+            Pastikan semua field sudah diisi sebelum submit
+          </p>
+        </div>
+      )}
 
 
     </form>
