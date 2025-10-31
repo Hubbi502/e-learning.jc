@@ -145,7 +145,7 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
         setError(data.message || 'Gagal mencatat absensi');
         
         // Jika error adalah duplicate, tandai sudah submit
-        if (data.type === 'USER_DUPLICATE' || data.type === 'DEVICE_DUPLICATE' || data.type === 'COOKIE_DUPLICATE') {
+        if (data.type === 'USER_DUPLICATE' || data.type === 'DEVICE_DUPLICATE' || data.type === 'COOKIE_DUPLICATE' || data.type === 'FINGERPRINT_DUPLICATE') {
           setAlreadySubmitted(true);
           
           // Simpan info ke localStorage
@@ -153,7 +153,8 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
             name: formData.name.trim(),
             class: formData.class.trim(),
             timestamp: new Date().toISOString(),
-            error: true
+            error: true,
+            duplicateType: data.type
           };
           localStorage.setItem(submissionKey, JSON.stringify(errorSubmissionData));
         }
