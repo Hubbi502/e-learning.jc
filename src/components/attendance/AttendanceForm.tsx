@@ -28,41 +28,77 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
 
   // ===== DEVICE ID & SUBMISSION CHECK =====
   useEffect(() => {
-    if (typeof window !== 'undefined' && fingerprintData?.visitorId) {
-      // Use FingerprintJS visitor ID as device ID
-      const visitorId = fingerprintData.visitorId;
-      setDeviceId(visitorId);
-
-      // ===== CEK APAKAH SUDAH SUBMIT HARI INI =====
-      const submissionKey = `attendance_submitted_${meetingId}_${visitorId}`;
-      const submissionData = localStorage.getItem(submissionKey);
-      
-      if (submissionData) {
-        try {
-          const data = JSON.parse(submissionData);
-          const submittedDate = new Date(data.timestamp);
-          const today = new Date();
-          
-          // Cek apakah submission masih hari ini
-          const isSameDay = 
-            submittedDate.getDate() === today.getDate() &&
-            submittedDate.getMonth() === today.getMonth() &&
-            submittedDate.getFullYear() === today.getFullYear();
-          
-          if (isSameDay) {
-            setAlreadySubmitted(true);
-            setError(`Anda sudah mengisi absensi hari ini sebagai ${data.name} (${data.class})`);
-          } else {
-            // Hapus data lama jika beda hari
-            localStorage.removeItem(submissionKey);
-          }
-        } catch (e) {
-          // Jika data corrupt, hapus
-          localStorage.removeItem(submissionKey);
+    if (typeof window !== 'undefined') {
+      // Try to use FingerprintJS first
+      if (fingerprintData?.visitorId) {
+        const visitorId = fingerprintData.visitorId;
+        setDeviceId(visitorId);
+        checkSubmissionStatus(visitorId);
+      }
+      // Fallback: Generate UUID if fingerprint fails (for mobile devices)
+      else if (fingerprintError || (!isFingerprintLoading && !fingerprintData)) {
+        console.log('[Attendance] FingerprintJS failed, using fallback UUID');
+        let fallbackId = localStorage.getItem('attendance_fallback_device_id');
+        
+        if (!fallbackId) {
+          fallbackId = crypto.randomUUID();
+          localStorage.setItem('attendance_fallback_device_id', fallbackId);
         }
+        
+        setDeviceId(fallbackId);
+        checkSubmissionStatus(fallbackId);
       }
     }
-  }, [meetingId, fingerprintData]);
+    
+    // Set timeout fallback after 5 seconds if still loading
+    const fallbackTimeout = setTimeout(() => {
+      if (!deviceId && isFingerprintLoading) {
+        console.log('[Attendance] FingerprintJS timeout, using fallback UUID');
+        let fallbackId = localStorage.getItem('attendance_fallback_device_id');
+        
+        if (!fallbackId) {
+          fallbackId = crypto.randomUUID();
+          localStorage.setItem('attendance_fallback_device_id', fallbackId);
+        }
+        
+        setDeviceId(fallbackId);
+        checkSubmissionStatus(fallbackId);
+      }
+    }, 5000); // 5 seconds timeout
+    
+    return () => clearTimeout(fallbackTimeout);
+  }, [meetingId, fingerprintData, fingerprintError, isFingerprintLoading, deviceId]);
+
+  // Helper function to check submission status
+  const checkSubmissionStatus = (visitorId: string) => {
+    const submissionKey = `attendance_submitted_${meetingId}_${visitorId}`;
+    const submissionData = localStorage.getItem(submissionKey);
+    
+    if (submissionData) {
+      try {
+        const data = JSON.parse(submissionData);
+        const submittedDate = new Date(data.timestamp);
+        const today = new Date();
+        
+        // Cek apakah submission masih hari ini
+        const isSameDay = 
+          submittedDate.getDate() === today.getDate() &&
+          submittedDate.getMonth() === today.getMonth() &&
+          submittedDate.getFullYear() === today.getFullYear();
+        
+        if (isSameDay) {
+          setAlreadySubmitted(true);
+          setError(`Anda sudah mengisi absensi hari ini sebagai ${data.name} (${data.class})`);
+        } else {
+          // Hapus data lama jika beda hari
+          localStorage.removeItem(submissionKey);
+        }
+      } catch (e) {
+        // Jika data corrupt, hapus
+        localStorage.removeItem(submissionKey);
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,13 +111,7 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
     
     // Validasi device ID sudah tersedia
     if (!deviceId) {
-      setError('Device fingerprint belum tersedia. Silakan tunggu sebentar...');
-      return;
-    }
-
-    // Show fingerprint error if any
-    if (fingerprintError) {
-      setError('Gagal mendapatkan fingerprint device. Silakan coba lagi.');
+      setError('Device ID belum tersedia. Silakan tunggu sebentar atau refresh halaman...');
       return;
     }
 
@@ -218,10 +248,18 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
       {/* Device ID Info (for debugging, bisa dihapus di production) */}
       {deviceId && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-2 rounded-lg text-xs">
-          <p className="font-mono">🔒 Device Fingerprint: {deviceId.substring(0, 8)}...{deviceId.substring(deviceId.length - 4)}</p>
+          <p className="font-mono">
+            🔒 Device ID: {deviceId.substring(0, 8)}...{deviceId.substring(deviceId.length - 4)}
+            {fingerprintError && <span className="ml-2 text-amber-600">(Fallback Mode)</span>}
+          </p>
           <p className="mt-1 text-blue-600">Status: {alreadySubmitted ? '✅ Sudah Absen' : '⏳ Belum Absen'}</p>
           {fingerprintData?.confidence && (
             <p className="mt-1 text-blue-600">Confidence Score: {(fingerprintData.confidence.score * 100).toFixed(1)}%</p>
+          )}
+          {fingerprintError && (
+            <p className="mt-1 text-amber-600 text-xs">
+              ℹ️ Menggunakan fallback UUID untuk perangkat ini
+            </p>
           )}
         </div>
       )}
@@ -230,6 +268,7 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
       {isFingerprintLoading && !deviceId && (
         <div className="bg-gray-50 border border-gray-200 text-gray-700 px-4 py-3 rounded-lg text-center">
           <p className="text-sm">🔍 Mendeteksi device fingerprint...</p>
+          <p className="text-xs text-gray-500 mt-1">Mohon tunggu sebentar...</p>
         </div>
       )}
 

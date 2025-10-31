@@ -17,12 +17,18 @@ export function hashFingerprint(fingerprintId: string, salt?: string): string {
 
 /**
  * Validate fingerprint format
- * FingerprintJS visitor IDs are typically alphanumeric strings
+ * Supports both FingerprintJS visitor IDs and fallback UUIDs
  */
 export function isValidFingerprint(fingerprintId: string): boolean {
   // Check if it's a non-empty string with reasonable length
   if (!fingerprintId || typeof fingerprintId !== 'string') {
     return false;
+  }
+  
+  // Check for UUID format (fallback for mobile devices)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(fingerprintId)) {
+    return true;
   }
   
   // FingerprintJS visitor IDs are typically 20 characters
@@ -31,7 +37,7 @@ export function isValidFingerprint(fingerprintId: string): boolean {
     return false;
   }
   
-  // Check if it contains only alphanumeric characters
+  // Check if it contains only alphanumeric characters (FingerprintJS format)
   const alphanumericRegex = /^[a-zA-Z0-9]+$/;
   return alphanumericRegex.test(fingerprintId);
 }
