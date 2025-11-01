@@ -134,6 +134,27 @@ export function AttendanceManagement() {
 
   return (
     <div className="space-y-6">
+      {/* Quick Actions Bar */}
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-4 shadow-lg">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 p-2 rounded-lg">
+              <Users className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-white font-semibold text-lg">Attendance Management</h3>
+              <p className="text-white/80 text-sm">Kelola data kehadiran siswa</p>
+            </div>
+          </div>
+          <a
+            href="/dashboard/attendance/manage"
+            className="px-6 py-2.5 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-all font-semibold shadow-lg hover:shadow-xl flex items-center gap-2"
+          >
+            📋 Kelola Attendance Records
+          </a>
+        </div>
+      </div>
+
       {/* Stats Cards with Japanese aesthetic */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-gradient-to-br from-indigo-500 via-indigo-600 to-indigo-700 rounded-2xl p-6 shadow-lg border border-indigo-400/20 relative overflow-hidden group hover:shadow-xl transition-all duration-300">
