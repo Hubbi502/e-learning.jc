@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import AttendanceDetailModal from '@/components/admin/AttendanceDetailModal';
 
 interface Meeting {
   id: string;
@@ -18,6 +18,7 @@ export default function AttendanceListPage() {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     starts_at: '',
@@ -178,12 +179,12 @@ export default function AttendanceListPage() {
                     >
                       📋 Copy Link
                     </button>
-                    <Link
-                      href={`/dashboard/attendance/${meeting.id}`}
+                    <button
+                      onClick={() => setSelectedMeetingId(meeting.id)}
                       className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
                     >
                       📊 Detail
-                    </Link>
+                    </button>
                   </div>
                 </div>
                 <div className="mt-4 pt-4 border-t border-gray-200">
@@ -195,6 +196,14 @@ export default function AttendanceListPage() {
             ))
           )}
         </div>
+
+        {/* Attendance Detail Modal */}
+        {selectedMeetingId && (
+          <AttendanceDetailModal 
+            meetingId={selectedMeetingId}
+            onClose={() => setSelectedMeetingId(null)}
+          />
+        )}
       </div>
     </div>
   );

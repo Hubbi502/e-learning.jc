@@ -15,10 +15,10 @@ model Question {
   option_b       String
   option_c       String
   option_d       String
-  explanation    String?        @db.Text
   correct_option Option
   created_at     DateTime       @default(now())
   updated_at     DateTime       @updatedAt
+  explanation    String?
   answers        Answer[]
   exam_questions ExamQuestion[]
 
@@ -55,20 +55,20 @@ model ExamQuestion {
 }
 
 model Student {
-  id           String    @id @default(uuid())
+  id           String       @id @default(uuid())
   name         String
   class        String
   exam_code    String
   category     Category
-  started_at   DateTime? @default(now())
-  violations   Int       @default(0)
-  is_submitted Boolean   @default(false)
-  created_at   DateTime  @default(now())
+  started_at   DateTime?    @default(now())
+  violations   Int          @default(0)
+  is_submitted Boolean      @default(false)
+  created_at   DateTime     @default(now())
   answers      Answer[]
+  Attendance   Attendance[]
   scores       Score[]
 
   @@map("students")
-  Attendance Attendance[]
 }
 
 model Answer {
@@ -117,14 +117,50 @@ model Material {
 }
 
 model AdminUser {
-  id            String   @id @default(uuid())
+  id            String       @id @default(uuid())
   password_hash String
-  created_at    DateTime @default(now())
-  email         String   @unique
+  created_at    DateTime     @default(now())
+  email         String       @unique
+  Attendance    Attendance[]
+  Material      Material[]
 
   @@map("admin_users")
-  Attendance Attendance[]
-  Material Material[]
+}
+
+model Attendance {
+  id               String           @id @default(uuid())
+  student_id       String
+  date             DateTime         @default(now())
+  status           AttendanceStatus
+  recorded_at      DateTime         @default(now())
+  scanned_admin_id String
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+  meeting_id       String
+  device_id        String           @default("unknown")
+  fingerprint_hash String?
+  reason           String?
+  meeting          Meeting          @relation(fields: [meeting_id], references: [id], onDelete: Cascade)
+  scannedByAdmin   AdminUser        @relation(fields: [scanned_admin_id], references: [id], onDelete: Cascade)
+  student          Student          @relation(fields: [student_id], references: [id], onDelete: Cascade)
+
+  @@unique([student_id, meeting_id])
+  @@index([device_id])
+  @@index([recorded_at])
+  @@map("attendances")
+}
+
+model Meeting {
+  id          String       @id @default(uuid())
+  title       String       @default("")
+  starts_at   DateTime?
+  ends_at     DateTime?
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+  is_active   Boolean      @default(true)
+  attendances Attendance[]
+
+  @@map("meetings")
 }
 
 enum Category {
@@ -138,43 +174,10 @@ enum Option {
   C
   D
 }
-model Attendance {
- id String @id @default(uuid())
- student_id String
- date DateTime @default(now())
- status AttendanceStatus
- recorded_at DateTime @default(now()) // Stempel waktu kapan absensi dicatat
- scanned_admin_id String // Tautan ke AdminUser yang barcodenya dipindai
- meeting_id String
- device_id String @default("unknown") // ID unik perangkat untuk mencegah absensi ganda dari satu device
- fingerprint_hash String? // Hashed fingerprint untuk validasi keamanan
- created_at DateTime @default(now())
- updated_at DateTime @updatedAt
- student Student @relation(fields: [student_id], references: [id], onDelete: Cascade)
- scannedByAdmin AdminUser @relation(fields: [scanned_admin_id], references: [id], onDelete: Cascade)
- meeting Meeting @relation(fields: [meeting_id], references: [id], onDelete: Cascade)
- @@unique([student_id, meeting_id]) // Memberlakukan satu catatan absensi per siswa per meeting
- @@index([device_id]) // Index untuk performa query device
- @@index([recorded_at]) // Index untuk performa query berdasarkan waktu
- @@index([fingerprint_hash]) // Index untuk performa query fingerprint hash
- @@map("attendances")
-}
+
 enum AttendanceStatus {
- HADIR
- TIDAK_HADIR
- TERLAMBAT
- IZIN
-}
-
-model Meeting {
-  id String @id @default(uuid())
-  title String @default("")
-  starts_at DateTime?
-  ends_at DateTime?
-  is_active Boolean @default(true)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-  attendances Attendance[]
-
-  @@map("meetings")
+  HADIR
+  TIDAK_HADIR
+  TERLAMBAT
+  IZIN
 }

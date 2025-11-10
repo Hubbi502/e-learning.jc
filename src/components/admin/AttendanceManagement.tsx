@@ -1,7 +1,9 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { QrCode, PlusCircle, Clock, Copy, Search, Calendar, Users, TrendingUp, X, CheckCircle2, AlertCircle, Info, Lightbulb, Power } from 'lucide-react';
+import { QrCode, PlusCircle, Clock, Copy, Search, Calendar, Users, TrendingUp, X, CheckCircle2, AlertCircle, Info, Lightbulb, Power, FileText } from 'lucide-react';
 import MeetingStatusToggle from './MeetingStatusToggle';
+import AttendanceDetailModal from './AttendanceDetailModal';
+import PermissionFormModal from './PermissionFormModal';
 
 type Meeting = {
   id: string;
@@ -27,6 +29,8 @@ export function AttendanceManagement() {
   const [sort, setSort] = useState<'newest' | 'oldest'>('newest');
   const [loadingQr, setLoadingQr] = useState(false);
   const [selectedMeetingForToggle, setSelectedMeetingForToggle] = useState<string | null>(null);
+  const [selectedMeetingForDetail, setSelectedMeetingForDetail] = useState<string | null>(null);
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
 
   async function fetchMeetings() {
     try {
@@ -250,6 +254,16 @@ export function AttendanceManagement() {
           </select>
 
           <button
+            onClick={() => setShowPermissionModal(true)}
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:from-blue-700 hover:to-blue-800 font-medium text-sm transition-all duration-300 transform hover:scale-[1.02]"
+            title="Catat izin siswa"
+          >
+            <FileText className="w-5 h-5" />
+            <span className="hidden sm:inline">Form Izin</span>
+            <span className="sm:hidden">Izin</span>
+          </button>
+
+          <button
             onClick={() => createMeeting()}
             className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 hover:from-indigo-700 hover:to-indigo-800 disabled:opacity-60 disabled:cursor-not-allowed font-medium text-sm transition-all duration-300 transform hover:scale-[1.02]"
             disabled={loading || !title.trim()}
@@ -419,13 +433,13 @@ export function AttendanceManagement() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                        <a
-                          href={`/dashboard/attendance/${m.id}`}
+                        <button
+                          onClick={() => setSelectedMeetingForDetail(m.id)}
                           className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:from-emerald-600 hover:to-emerald-700 text-sm font-semibold transition-all duration-300 transform hover:scale-105"
                         >
                           <Users className="w-4 h-4" />
                           <span>Attendance</span>
-                        </a>
+                        </button>
                         <button
                           onClick={() => setSelectedMeetingForToggle(m.id)}
                           className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg shadow-lg shadow-purple-500/30 hover:shadow-xl hover:shadow-purple-500/40 hover:from-purple-600 hover:to-purple-700 text-sm font-semibold transition-all duration-300 transform hover:scale-105"
@@ -684,6 +698,25 @@ export function AttendanceManagement() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Attendance Detail Modal */}
+      {selectedMeetingForDetail && (
+        <AttendanceDetailModal 
+          meetingId={selectedMeetingForDetail}
+          onClose={() => setSelectedMeetingForDetail(null)}
+        />
+      )}
+
+      {/* Permission Form Modal */}
+      {showPermissionModal && (
+        <PermissionFormModal 
+          onClose={() => setShowPermissionModal(false)}
+          onSuccess={() => {
+            // Optionally refresh meetings or show success notification
+            fetchMeetings();
+          }}
+        />
       )}
     </div>
   );

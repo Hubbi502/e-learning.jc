@@ -17,7 +17,8 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
   
   const [formData, setFormData] = useState({
     name: '',
-    class: ''
+    class: '',
+    reason: ''
   });
 
   const [deviceId, setDeviceId] = useState<string>('');
@@ -25,6 +26,7 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [alreadySubmitted, setAlreadySubmitted] = useState(false);
+  const [isPermissionMode, setIsPermissionMode] = useState(false);
 
   // ===== DEVICE ID & SUBMISSION CHECK =====
   useEffect(() => {
@@ -108,31 +110,45 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
       setError('⚠️ Mohon lengkapi semua field! Nama dan Kelas harus diisi.');
       return;
     }
+
+    // Validasi khusus untuk mode izin
+    if (isPermissionMode) {
+      if (!formData.reason.trim()) {
+        setError('⚠️ Alasan izin harus diisi!');
+        return;
+      }
+      if (formData.reason.trim().length < 10) {
+        setError('⚠️ Alasan izin minimal 10 karakter!');
+        return;
+      }
+    }
     
-    // Validasi device ID sudah tersedia
-    if (!deviceId) {
+    // Validasi device ID sudah tersedia (hanya untuk mode hadir)
+    if (!isPermissionMode && !deviceId) {
       setError('Device ID belum tersedia. Silakan tunggu sebentar atau refresh halaman...');
       return;
     }
 
-    // ===== VALIDASI CLIENT-SIDE: Cek localStorage =====
-    if (alreadySubmitted) {
+    // ===== VALIDASI CLIENT-SIDE: Cek localStorage (hanya untuk mode hadir) =====
+    if (!isPermissionMode && alreadySubmitted) {
       setError('Anda sudah mengisi absensi hari ini. Tidak dapat submit ulang.');
       return;
     }
 
-    // Cek ulang localStorage sebelum submit (double check)
-    const submissionKey = `attendance_submitted_${meetingId}_${deviceId}`;
-    const existingSubmission = localStorage.getItem(submissionKey);
-    
-    if (existingSubmission) {
-      try {
-        const data = JSON.parse(existingSubmission);
-        setError(`Anda sudah mengisi absensi hari ini sebagai ${data.name} (${data.class})`);
-        setAlreadySubmitted(true);
-        return;
-      } catch (e) {
-        // Data corrupt, lanjutkan
+    // Cek ulang localStorage sebelum submit (double check) - hanya untuk mode hadir
+    if (!isPermissionMode) {
+      const submissionKey = `attendance_submitted_${meetingId}_${deviceId}`;
+      const existingSubmission = localStorage.getItem(submissionKey);
+      
+      if (existingSubmission) {
+        try {
+          const data = JSON.parse(existingSubmission);
+          setError(`Anda sudah mengisi absensi hari ini sebagai ${data.name} (${data.class})`);
+          setAlreadySubmitted(true);
+          return;
+        } catch (e) {
+          // Data corrupt, lanjutkan
+        }
       }
     }
     
@@ -140,37 +156,54 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
     setError(null);
 
     try {
-      const response = await fetch('/api/attendance/submit', {
+      // Pilih endpoint berdasarkan mode
+      const endpoint = isPermissionMode 
+        ? '/api/attendance/submit-permission' 
+        : '/api/attendance/submit';
+
+      const requestBody = isPermissionMode
+        ? {
+            meeting_id: meetingId,
+            name: formData.name.trim(),
+            class: formData.class.trim(),
+            reason: formData.reason.trim(),
+          }
+        : {
+            meeting_id: meetingId,
+            name: formData.name.trim(),
+            class: formData.class.trim(),
+            deviceId: deviceId,
+          };
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          meeting_id: meetingId,
-          name: formData.name.trim(),
-          class: formData.class.trim(),
-          deviceId: deviceId,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        // ===== SIMPAN KE LOCALSTORAGE: Mencegah submit ulang =====
-        const submissionData = {
-          name: formData.name.trim(),
-          class: formData.class.trim(),
-          timestamp: new Date().toISOString(),
-          attendanceId: data.attendance.id
-        };
-        
-        localStorage.setItem(submissionKey, JSON.stringify(submissionData));
+        // ===== SIMPAN KE LOCALSTORAGE: Mencegah submit ulang (hanya untuk mode hadir) =====
+        if (!isPermissionMode) {
+          const submissionKey = `attendance_submitted_${meetingId}_${deviceId}`;
+          const submissionData = {
+            name: formData.name.trim(),
+            class: formData.class.trim(),
+            timestamp: new Date().toISOString(),
+            attendanceId: data.attendance.id
+          };
+          
+          localStorage.setItem(submissionKey, JSON.stringify(submissionData));
+        }
         
         setSuccess(true);
         setAlreadySubmitted(true);
         
         // Reset form
-        setFormData({ name: '', class: '' });
+        setFormData({ name: '', class: '', reason: '' });
         
         // Redirect after 2 seconds
         setTimeout(() => {
@@ -178,13 +211,14 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
         }, 2000);
       } else {
         // Tampilkan error yang spesifik dari server
-        setError(data.message || 'Gagal mencatat absensi');
+        setError(data.message || 'Gagal mencatat ' + (isPermissionMode ? 'izin' : 'absensi'));
         
-        // Jika error adalah duplicate, tandai sudah submit
-        if (data.type === 'USER_DUPLICATE' || data.type === 'DEVICE_DUPLICATE' || data.type === 'COOKIE_DUPLICATE' || data.type === 'FINGERPRINT_DUPLICATE') {
+        // Jika error adalah duplicate, tandai sudah submit (hanya untuk mode hadir)
+        if (!isPermissionMode && (data.type === 'USER_DUPLICATE' || data.type === 'DEVICE_DUPLICATE' || data.type === 'COOKIE_DUPLICATE' || data.type === 'FINGERPRINT_DUPLICATE')) {
           setAlreadySubmitted(true);
           
           // Simpan info ke localStorage
+          const submissionKey = `attendance_submitted_${meetingId}_${deviceId}`;
           const errorSubmissionData = {
             name: formData.name.trim(),
             class: formData.class.trim(),
@@ -203,7 +237,7 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
@@ -214,8 +248,14 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
     return (
       <div className="text-center py-8">
         <div className="text-green-500 text-6xl mb-4">✓</div>
-        <h3 className="text-2xl font-bold text-gray-800 mb-2">Absensi Berhasil!</h3>
-        <p className="text-gray-600">Terima kasih sudah mengisi absensi</p>
+        <h3 className="text-2xl font-bold text-gray-800 mb-2">
+          {isPermissionMode ? 'Izin Berhasil Dicatat!' : 'Absensi Berhasil!'}
+        </h3>
+        <p className="text-gray-600">
+          {isPermissionMode 
+            ? 'Terima kasih, izin Anda telah tercatat' 
+            : 'Terima kasih sudah mengisi absensi'}
+        </p>
         <div className="mt-4 text-sm text-gray-500">
           Mengalihkan...
         </div>
@@ -265,10 +305,64 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
       )}
 
       {/* Loading fingerprint */}
-      {isFingerprintLoading && !deviceId && (
+      {!isPermissionMode && isFingerprintLoading && !deviceId && (
         <div className="bg-gray-50 border border-gray-200 text-gray-700 px-4 py-3 rounded-lg text-center">
           <p className="text-sm">🔍 Mendeteksi device fingerprint...</p>
           <p className="text-xs text-gray-500 mt-1">Mohon tunggu sebentar...</p>
+        </div>
+      )}
+
+      {/* Toggle Mode Button */}
+      <div className="flex items-center justify-center gap-2 p-4 bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl border border-slate-200">
+        <button
+          type="button"
+          onClick={() => {
+            setIsPermissionMode(false);
+            setError(null);
+            setFormData({ ...formData, reason: '' });
+          }}
+          className={`flex-1 py-3 px-4 rounded-lg font-semibold text-sm transition-all ${
+            !isPermissionMode
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30'
+              : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+          }`}
+        >
+          <span className="flex items-center justify-center gap-2">
+            <span className="text-lg">✓</span>
+            <span>Hadir</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setIsPermissionMode(true);
+            setError(null);
+          }}
+          className={`flex-1 py-3 px-4 rounded-lg font-semibold text-sm transition-all ${
+            isPermissionMode
+              ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/30'
+              : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+          }`}
+        >
+          <span className="flex items-center justify-center gap-2">
+            <span className="text-lg">✉</span>
+            <span>Izin</span>
+          </span>
+        </button>
+      </div>
+
+      {/* Mode Info */}
+      {isPermissionMode && (
+        <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">ℹ️</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-900 mb-1">Mode Izin</p>
+              <p className="text-sm text-amber-700">
+                Anda sedang mengisi form izin. Pastikan untuk memberikan alasan yang jelas mengapa tidak dapat hadir.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -308,13 +402,43 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
         />
       </div>
 
+      {/* Alasan Izin Field - hanya muncul di mode izin */}
+      {isPermissionMode && (
+        <div>
+          <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-2">
+            Alasan Izin <span className="text-red-500">*</span>
+          </label>
+          <textarea
+            id="reason"
+            name="reason"
+            value={formData.reason}
+            onChange={handleChange}
+            required={isPermissionMode}
+            rows={4}
+            className="text-black w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all resize-none"
+            placeholder="Contoh: Sakit, keperluan keluarga, dll. (Minimal 10 karakter)"
+            disabled={loading}
+          />
+          <p className="mt-2 text-xs text-gray-500">
+            {formData.reason.length}/500 karakter 
+            {formData.reason.length > 0 && formData.reason.length < 10 && (
+              <span className="text-amber-600 ml-2">• Minimal 10 karakter</span>
+            )}
+          </p>
+        </div>
+      )}
+
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={loading || alreadySubmitted || isFingerprintLoading}
-        className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+        disabled={loading || (!isPermissionMode && alreadySubmitted) || (!isPermissionMode && isFingerprintLoading)}
+        className={`w-full text-white py-3 px-6 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-[1.02] active:scale-[0.98] ${
+          isPermissionMode
+            ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 focus:ring-amber-500 shadow-lg shadow-amber-500/30'
+            : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:ring-blue-500 shadow-lg shadow-blue-500/30'
+        }`}
       >
-        {isFingerprintLoading ? (
+        {!isPermissionMode && isFingerprintLoading ? (
           <span className="flex items-center justify-center">
             <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -322,7 +446,7 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
             </svg>
             Mendeteksi Device...
           </span>
-        ) : alreadySubmitted ? (
+        ) : alreadySubmitted && !isPermissionMode ? (
           '✓ Sudah Mengisi Absensi Hari Ini'
         ) : loading ? (
           <span className="flex items-center justify-center">
@@ -332,8 +456,16 @@ export default function AttendanceForm({ meetingId }: AttendanceFormProps) {
             </svg>
             Mengirim...
           </span>
+        ) : isPermissionMode ? (
+          <span className="flex items-center justify-center gap-2">
+            <span className="text-lg">✉</span>
+            <span>Kirim Form Izin</span>
+          </span>
         ) : (
-          '🚀 Kirim Absensi'
+          <span className="flex items-center justify-center gap-2">
+            <span className="text-lg">🚀</span>
+            <span>Kirim Absensi</span>
+          </span>
         )}
       </button>
 
