@@ -29,6 +29,17 @@ export default function LandingNavigation({ isDark, toggleTheme }: LandingNaviga
           
           <div className="flex items-center space-x-4">
             <button
+              onClick={() => router.push('/kanji')}
+              className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:scale-105 ${
+                isDark 
+                  ? 'bg-slate-800 text-purple-300 hover:bg-slate-700 border border-purple-500/30' 
+                  : 'bg-white text-red-600 hover:bg-red-50 border border-red-200'
+              }`}
+            >
+              🇯🇵 Learn Kanji
+            </button>
+
+            <button
               onClick={toggleTheme}
               className={`p-2 rounded-full transition-all duration-300 hover:scale-110 ${
                 isDark 
