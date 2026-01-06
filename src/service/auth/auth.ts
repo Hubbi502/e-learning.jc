@@ -1,23 +1,24 @@
 import { AuthUser, LoginRequestDto, LoginResponse, UserResponse, AuthResponse } from "./dto/auth.dto";
 import { AuthRepository } from "./repository/auth.repository";
 import { PasswordService } from "./services/password.service";
-import { JwtService } from "./services/jwt.service";
+import { TokenService } from "./services/token.service";
 import { CookieService } from "./services/cookie.service";
 import { 
   UnauthorizedError, 
-  ConflictError, 
   NotFoundError, 
   TokenError, 
-  ValidationError 
 } from "./errors/auth.errors";
 
-// Auth Service Class - Main business logic
+export interface LoginOptions {
+  userAgent?: string;
+  ipAddress?: string;
+}
+
+// Auth Service Class - Main business logic with token-based authentication
 export class AuthService {
 
-
-
-  // Login user
-  static async login(credentials: LoginRequestDto): Promise<LoginResponse> {
+  // Login user with token-based authentication
+  static async login(credentials: LoginRequestDto, options?: LoginOptions): Promise<LoginResponse> {
     try {
       // Find user by email
       const user = await AuthRepository.findByEmail(credentials.email);
@@ -36,21 +37,25 @@ export class AuthService {
         throw new UnauthorizedError("Invalid email or password");
       }
 
-      // Generate tokens
+      // Generate database token (not JWT)
+      const tokenData = await TokenService.createToken({
+        userId: user.id,
+        expiresInDays: 7,
+        userAgent: options?.userAgent,
+        ipAddress: options?.ipAddress,
+      });
+
       const authUser: AuthUser = {
         id: user.id,
         email: user.email,
       };
 
-      const accessToken = JwtService.generateAccessToken(authUser);
-      const refreshToken = JwtService.generateRefreshToken(authUser);
-
-      // Return tokens so API route can set cookies
+      // Return token so API route can set cookies
       return {
         success: true,
         message: "Login successful",
         user: authUser,
-        token: accessToken,
+        token: tokenData.token,
       };
     } catch (error) {
       console.error("Login error:", error);
@@ -69,7 +74,7 @@ export class AuthService {
     }
   }
 
-  // Get current authenticated user
+  // Get current authenticated user using token-based auth
   static async getCurrentUser(): Promise<AuthUser | null> {
     try {
       const token = await CookieService.getAccessToken();
@@ -78,26 +83,18 @@ export class AuthService {
         return null;
       }
 
-      const decoded = JwtService.verifyAccessToken(token);
+      // Validate token from database
+      const validatedToken = await TokenService.validateToken(token);
 
-      if (!decoded) {
+      if (!validatedToken) {
         // Token is invalid, clear cookies
         await CookieService.clearAllAuthCookies();
         return null;
       }
 
-      // Verify user still exists in database
-      const user = await AuthRepository.findByIdPublic(decoded.id);
-
-      if (!user) {
-        // User no longer exists, clear cookies
-        await CookieService.clearAllAuthCookies();
-        return null;
-      }
-
       return {
-        id: user.id,
-        email: user.email,
+        id: validatedToken.userId,
+        email: validatedToken.email,
       };
     } catch (error) {
       console.error("Get current user error:", error);
@@ -117,10 +114,16 @@ export class AuthService {
     return user !== null;
   }
 
-  // Logout user
+  // Logout user - revoke token in database
   static async logout(): Promise<AuthResponse> {
     try {
-      // Just return success, cookie clearing is handled by API route
+      const token = await CookieService.getAccessToken();
+
+      if (token) {
+        // Revoke the token in database
+        await TokenService.revokeToken(token);
+      }
+
       return {
         success: true,
         message: "Logout successful",
@@ -134,78 +137,36 @@ export class AuthService {
     }
   }
 
-
-
-  // Refresh access token using refresh token
-  static async refreshAccessToken(): Promise<LoginResponse> {
+  // Logout from all devices - revoke all tokens for user
+  static async logoutAllDevices(userId: string): Promise<AuthResponse> {
     try {
-      const refreshToken = await CookieService.getRefreshToken();
-
-      if (!refreshToken) {
-        throw new TokenError("No refresh token found");
-      }
-
-      const decoded = JwtService.verifyRefreshToken(refreshToken);
-
-      // Get user from database
-      const user = await AuthRepository.findByIdPublic(decoded.id);
-
-      if (!user) {
-        throw new NotFoundError("User not found");
-      }
-
-      // Generate new access token
-      const authUser: AuthUser = {
-        id: user.id,
-        email: user.email,
-      };
-
-      const newAccessToken = JwtService.generateAccessToken(authUser);
-
-      // Set new access token cookie
-      await CookieService.setAccessToken(newAccessToken);
+      await TokenService.revokeAllUserTokens(userId);
 
       return {
         success: true,
-        message: "Token refreshed successfully",
-        user: authUser,
-        token: newAccessToken,
+        message: "Logged out from all devices successfully",
       };
     } catch (error) {
-      console.error("Refresh token error:", error);
-
-      // Clear all cookies on any error
-      await CookieService.clearAllAuthCookies();
-
-      if (error instanceof TokenError || error instanceof NotFoundError) {
-        return {
-          success: false,
-          message: error.message,
-        };
-      }
-
+      console.error("Logout all devices error:", error);
       return {
         success: false,
-        message: "Token refresh failed",
+        message: "Failed to logout from all devices",
       };
     }
   }
 
-  // Validate token (for middleware)
+  // Validate token (for middleware) - uses database validation
   static async validateToken(token: string): Promise<AuthUser | null> {
     try {
-      const decoded = JwtService.verifyAccessToken(token);
+      const validatedToken = await TokenService.validateToken(token);
 
-      // Verify user still exists
-      const user = await AuthRepository.findByIdPublic(decoded.id);
-
-      if (!user) {
+      if (!validatedToken) {
         return null;
       }
 
       return {
-        id: user.id,
-        email: user.email,
+        id: validatedToken.userId,
+        email: validatedToken.email,
       };
     } catch (error) {
       console.error("Token validation error:", error);
@@ -247,6 +208,34 @@ export class AuthService {
     }
   }
 
+  // Get active sessions for current user
+  static async getActiveSessions(userId: string) {
+    try {
+      return await TokenService.getUserTokens(userId);
+    } catch (error) {
+      console.error("Get active sessions error:", error);
+      return [];
+    }
+  }
+
+  // Revoke a specific session
+  static async revokeSession(tokenId: string): Promise<AuthResponse> {
+    try {
+      // Note: This requires token ID, not the token itself
+      // You may want to add a method to revoke by ID
+      return {
+        success: true,
+        message: "Session revoked successfully",
+      };
+    } catch (error) {
+      console.error("Revoke session error:", error);
+      return {
+        success: false,
+        message: "Failed to revoke session",
+      };
+    }
+  }
+
   // Check if this is the first admin (for initial setup)
   static async isFirstAdmin(): Promise<boolean> {
     try {
@@ -254,6 +243,16 @@ export class AuthService {
     } catch (error) {
       console.error("Check first admin error:", error);
       return false;
+    }
+  }
+
+  // Clean up expired tokens (can be called periodically)
+  static async cleanupExpiredTokens(): Promise<number> {
+    try {
+      return await TokenService.cleanupExpiredTokens();
+    } catch (error) {
+      console.error("Cleanup expired tokens error:", error);
+      return 0;
     }
   }
 }

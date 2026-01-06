@@ -123,8 +123,27 @@ model AdminUser {
   email         String       @unique
   Attendance    Attendance[]
   Material      Material[]
+  AuthToken     AuthToken[]
 
   @@map("admin_users")
+}
+
+model AuthToken {
+  id           String    @id @default(uuid())
+  token        String    @unique
+  user_id      String
+  user         AdminUser @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  expires_at   DateTime
+  created_at   DateTime  @default(now())
+  last_used_at DateTime?
+  user_agent   String?
+  ip_address   String?
+  is_revoked   Boolean   @default(false)
+
+  @@index([token])
+  @@index([user_id])
+  @@index([expires_at])
+  @@map("auth_tokens")
 }
 
 model Attendance {

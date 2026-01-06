@@ -11,6 +11,7 @@ export * from "./errors/auth.errors";
 export { PasswordService } from "./services/password.service";
 export { JwtService } from "./services/jwt.service";
 export { CookieService } from "./services/cookie.service";
+export { TokenService } from "./services/token.service";
 
 // Repository
 export { AuthRepository } from "./repository/auth.repository";

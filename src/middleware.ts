@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AuthService } from "./service/auth/auth";
+import { TokenService } from "./service/auth/services/token.service";
 
 export async function middleware(request: NextRequest) {
   // Get the pathname
@@ -29,12 +29,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // If it's a protected route and there's a token, verify it
+  // If it's a protected route and there's a token, verify it from database
   if (isProtectedRoute && token) {
-    const user = AuthService.validateToken(token);
+    const validatedToken = await TokenService.validateToken(token);
     
-    if (!user) {
-      // Token is invalid, clear cookie and redirect to login
+    if (!validatedToken) {
+      // Token is invalid or revoked, clear cookie and redirect to login
       const response = NextResponse.redirect(new URL('/login', request.url));
       response.cookies.delete('auth_token');
       return response;
@@ -43,9 +43,9 @@ export async function middleware(request: NextRequest) {
 
   // If user is logged in and trying to access auth routes, redirect to dashboard
   if (isAuthRoute && token) {
-    const user = await AuthService.validateToken(token);
+    const validatedToken = await TokenService.validateToken(token);
     
-    if (user) {
+    if (validatedToken) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
   }

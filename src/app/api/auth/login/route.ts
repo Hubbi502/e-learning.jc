@@ -8,8 +8,18 @@ export async function POST(request: NextRequest) {
     // Validate input using DTO
     const validatedData = validateLoginRequest(body);
 
-    // Attempt login
-    const result = await AuthService.login(validatedData);
+    // Get user agent and IP for token metadata
+    const userAgent = request.headers.get("user-agent") || undefined;
+    const forwardedFor = request.headers.get("x-forwarded-for");
+    const ipAddress = forwardedFor?.split(",")[0]?.trim() || 
+                      request.headers.get("x-real-ip") || 
+                      undefined;
+
+    // Attempt login with token-based auth
+    const result = await AuthService.login(validatedData, {
+      userAgent,
+      ipAddress,
+    });
 
     if (!result.success) {
       return NextResponse.json(
@@ -28,7 +38,7 @@ export async function POST(request: NextRequest) {
       user: result.user
     });
 
-    // Set auth cookie in response
+    // Set auth cookie in response with the database token
     if (result.token) {
       response.cookies.set({
         name: 'auth_token',
